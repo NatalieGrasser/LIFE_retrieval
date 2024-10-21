@@ -53,7 +53,7 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PT_grad'):
         
     # free chemistry, define VMRs
     chemistry={'log_H2O':([-12,-1],r'log H$_2$O'),
-            'log_12CO':([-12,-1],r'log CO'),
+            'log_CO':([-12,-1],r'log CO'),
             'log_CO2':([-12,-1],r'log CO$_2$'),
             'log_CH4':([-12,-1],r'log CH$_4$'),
             'log_NH3':([-12,-1],r'log NH$_3$'),

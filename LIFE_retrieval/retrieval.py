@@ -302,14 +302,7 @@ class Retrieval:
             print('bayes_dict=',bayes_dict)  
 
             # set back param priors for next retrieval
-            if self.chemistry=='freechem':
-                self.parameters.param_priors[f'log_{molecule}']=original_prior 
-            elif self.chemistry in ['equchem','quequchem']:
-                if molecule=='13CO':
-                    key='log_C12_13_ratio'
-                elif molecule=='H2(18)O':
-                    key='log_O16_18_ratio'
-                self.parameters.param_priors[key]=original_prior
+            self.parameters.param_priors[f'log_{molecule}']=original_prior 
             
         return bayes_dict
 
