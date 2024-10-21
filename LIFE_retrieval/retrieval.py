@@ -86,15 +86,14 @@ class Retrieval:
             wl_pad=1e-2 # wavelength padding because spectrum is not RV-shifted yet
             wlmin=np.min(self.data_wave)-wl_pad
             wlmax=np.max(self.data_wave)+wl_pad
-            wlen_range=np.array([0.4,wlmax]) # already in microns for pRT
+            wlen_range=np.array([wlmin,wlmax]) # already in microns for pRT
             #wlen_range=[0.3,0.4]
 
             atmosphere_object = Radtrans(line_species=self.species,
                                 rayleigh_species = ['H2', 'He'],
                                 continuum_opacities = ['H2-H2', 'H2-He'],
                                 wlen_bords_micron=wlen_range, 
-                                mode='lbl',
-                                lbl_opacity_sampling=self.lbl_opacity_sampling)
+                                mode='c-k')
             
             atmosphere_object.setup_opa_structure(self.pressure)
             with open(file,'wb') as file:
