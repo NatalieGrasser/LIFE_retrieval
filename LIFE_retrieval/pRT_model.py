@@ -8,11 +8,9 @@ from scipy.interpolate import interp1d
 
 import getpass
 if getpass.getuser() == "grasser": # when runnig from LEM
-    from LIFE_retrieval.spectrum import Spectrum, convolve_to_resolution
     import matplotlib
     matplotlib.use('Agg') # disable interactive plotting
-elif getpass.getuser() == "natalie": # when testing from my laptop
-    from spectrum import Spectrum, convolve_to_resolution
+from spectrum import Spectrum, convolve_to_resolution
 
 class pRT_spectrum:
 

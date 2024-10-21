@@ -1,15 +1,8 @@
-import getpass
 import os
-if getpass.getuser() == "grasser": # when runnig from LEM
-    from LIFE_retrieval.pRT_model import pRT_spectrum
-    import LIFE_retrieval.figures as figs
-    from LIFE_retrieval.covariance import *
-    from LIFE_retrieval.log_likelihood import *
-elif getpass.getuser() == "natalie": # when testing from my laptop
-    from pRT_model import pRT_spectrum
-    import figures as figs
-    from covariance import *
-    from log_likelihood import *
+from pRT_model import pRT_spectrum
+import figures as figs
+from covariance import *
+from log_likelihood import *
 
 import numpy as np
 import pymultinest
