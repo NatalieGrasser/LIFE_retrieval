@@ -66,8 +66,6 @@ class Retrieval:
         self.calc_errors=False
 
         self.color1=target.color1
-        #self.color2=target.color2
-        #self.color3=target.color3
 
     def get_species(self,param_dict): # get pRT species name from parameters dict
         species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
