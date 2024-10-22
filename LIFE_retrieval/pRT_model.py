@@ -10,7 +10,9 @@ import getpass
 if getpass.getuser() == "grasser": # when runnig from LEM
     import matplotlib
     matplotlib.use('Agg') # disable interactive plotting
-    from LIFE_retrieval.spectrum import Spectrum, convolve_to_resolution
+    #from LIFE_retrieval.spectrum import Spectrum, convolve_to_resolution
+    from spectrum import Spectrum, convolve_to_resolution
+
 elif getpass.getuser() == "natalie": # when testing from my laptop
     from spectrum import Spectrum, convolve_to_resolution
 
