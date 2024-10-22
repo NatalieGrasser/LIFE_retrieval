@@ -11,11 +11,14 @@ if getpass.getuser() == "grasser": # when running from LEM
     rank = comm.Get_rank() # important for MPI
     import matplotlib
     matplotlib.use('Agg') # disable interactive plotting
+    from LIFE_retrieval.target import Target
+    from LIFE_retrieval.retrieval import Retrieval
+    from LIFE_retrieval.parameters import Parameters
 elif getpass.getuser() == "natalie": # when testing from my laptop
     os.environ['pRT_input_data_path'] = "/home/natalie/.local/lib/python3.8/site-packages/petitRADTRANS/input_data_std/input_data"
-from target import Target
-from retrieval import Retrieval
-from parameters import Parameters
+    from target import Target
+    from retrieval import Retrieval
+    from parameters import Parameters
 
 # pass configuration as command line argument
 # example: config_run.py test 200 5

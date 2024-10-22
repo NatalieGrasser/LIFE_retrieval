@@ -1,9 +1,4 @@
 import os
-from pRT_model import pRT_spectrum
-import figures as figs
-from covariance import *
-from log_likelihood import *
-
 import numpy as np
 import pymultinest
 import pathlib
@@ -12,10 +7,18 @@ from petitRADTRANS import Radtrans
 import pandas as pd
 import matplotlib.pyplot as plt
 import getpass
-import astropy.constants as const
-from scipy.interpolate import interp1d
-#import warnings
-#warnings.filterwarnings("ignore", category=np.linalg.LinAlgError) 
+
+if getpass.getuser() == "grasser": # when running from LEM
+    from LIFE_retrieval.pRT_model import pRT_spectrum
+    import LIFE_retrieval.figures as figs
+    from LIFE_retrieval.covariance import *
+    from LIFE_retrieval.log_likelihood import *
+elif getpass.getuser() == "natalie": # when testing from my laptop
+    os.environ['pRT_input_data_path'] = "/home/natalie/.local/lib/python3.8/site-packages/petitRADTRANS/input_data_std/input_data"
+    from pRT_model import pRT_spectrum
+    import figures as figs
+    from covariance import *
+    from log_likelihood import *
 
 
 class Retrieval:

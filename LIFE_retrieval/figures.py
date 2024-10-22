@@ -6,14 +6,11 @@ if getpass.getuser() == "grasser": # when runnig from LEM
 import numpy as np
 import corner
 import matplotlib.pyplot as plt
-from labellines import labelLines
 from matplotlib.lines import Line2D
 from scipy.interpolate import CubicSpline
 import matplotlib.patches as mpatches
 import matplotlib.ticker as ticker
 import warnings
-import pathlib
-import pandas as pd
 from petitRADTRANS import Radtrans
 warnings.filterwarnings("ignore", category=UserWarning) 
 
@@ -50,7 +47,7 @@ def plot_spectrum(retrieval_object,fs=10,**kwargs):
     ax[1].xaxis.set_minor_locator(ticker.MultipleLocator(tick_spacing))
     ax[0].tick_params(labelsize=fs)
     ax[1].tick_params(labelsize=fs)
-    ax[1].set_xlabel('Wavelength [$\mu$m]',fontsize=fs) # if no inset
+    ax[1].set_xlabel('Wavelength [$\mu$m]',fontsize=fs)
 
     plt.subplots_adjust(wspace=0, hspace=0)
     if 'ax' not in kwargs:
@@ -246,7 +243,7 @@ def summary_plot(retrieval_object):
     l, b, w, h = [0.37,0.84,0.6,0.15] # left, bottom, width, height
     ax_spec = fig.add_axes([l,b,w,h])
     ax_res = fig.add_axes([l,b-0.03,w,h-0.12])
-    plot_spectrum(retrieval_object,ax=(ax_spec,ax_res),inset=False,fs=fs)
+    plot_spectrum(retrieval_object,ax=(ax_spec,ax_res),fs=fs)
 
     l, b, w, h = [0.7,0.47,0.27,0.27] # left, bottom, width, height
     ax_PT = fig.add_axes([l,b,w,h])
