@@ -6,7 +6,7 @@ class Target:
 
     def __init__(self,name):
         self.name=name
-        self.color1='mediumturquoise' 
+        self.color1='tomato' 
 
     def load_spectrum(self):
         filename='spec_emiss_0.txt'
