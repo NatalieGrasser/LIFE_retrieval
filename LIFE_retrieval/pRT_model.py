@@ -55,8 +55,6 @@ class pRT_spectrum:
             return list(species_info.loc[species,['C','O','H']])
         if info_key in ['C','O','H']:
             return species_info.loc[species,info_key]
-        if info_key == 'c' or info_key == 'color':
-            return species_info.loc[species,'color']
         if info_key == 'label':
             return species_info.loc[species,'mathtext_name']
     
@@ -90,9 +88,6 @@ class pRT_spectrum:
         mass_fractions['He'] = self.read_species_info('He', 'mass')*VMR_He
         mass_fractions['H2'] = self.read_species_info('H2', 'mass')*(1-VMR_wo_H2)
         H += self.read_species_info('H2','H')*(1-VMR_wo_H2) # Add to the H-bearing species
-        
-        if VMR_wo_H2.any() > 1:
-            print('VMR_wo_H2 > 1. Other species are too abundant!')
 
         MMW = 0 # Compute the mean molecular weight from all species
         for mass_i in mass_fractions.values():
@@ -102,6 +97,11 @@ class pRT_spectrum:
         for line_species_i in mass_fractions.keys():
             mass_fractions[line_species_i] /= MMW # Turn the molecular masses into mass fractions
         mass_fractions['MMW'] = MMW # pRT requires MMW in mass fractions dictionary
+
+        self.VMR_wo_H2=VMR_wo_H2[0] # same for all atmospheric layers, must be < 1
+        if self.VMR_wo_H2>1: # exit if invalid params, or there will be error message
+            return mass_fractions,1,1
+
         CO = C/O
         log_CH_solar = 8.46 - 12 # Asplund et al. (2021)
         FeH = np.log10(C/H)-log_CH_solar
@@ -125,6 +125,8 @@ class pRT_spectrum:
     def make_spectrum(self):
 
         atmosphere=self.atmosphere_object
+        if self.VMR_wo_H2>1: # if invalid parameters
+            return np.ones_like(self.data_wave)
 
         if self.cloud_mode == 'gray': # Gray cloud opacity
             self.wave_micron = const.c.to(u.km/u.s).value/atmosphere.freq/1e-9 # mircons
@@ -138,6 +140,8 @@ class pRT_spectrum:
                         give_absorption_opacity=self.give_absorption_opacity)
 
         wl = const.c.to(u.km/u.s).value/atmosphere.freq/1e-9 # mircons
+        if np.nansum(atmosphere.flux)==0:
+            print(self.params)
         flux = atmosphere.flux/np.nanmean(atmosphere.flux)
         spec = Spectrum(flux, wl)
         spec = convolve_to_resolution(spec,self.spectral_resolution)

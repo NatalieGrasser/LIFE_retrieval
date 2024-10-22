@@ -11,6 +11,7 @@ import pickle
 from petitRADTRANS import Radtrans
 import pandas as pd
 import matplotlib.pyplot as plt
+import getpass
 import astropy.constants as const
 from scipy.interpolate import interp1d
 #import warnings
@@ -87,7 +88,6 @@ class Retrieval:
             wlmin=np.min(self.data_wave)-wl_pad
             wlmax=np.max(self.data_wave)+wl_pad
             wlen_range=np.array([wlmin,wlmax]) # already in microns for pRT
-            #wlen_range=[0.3,0.4]
 
             atmosphere_object = Radtrans(line_species=self.species,
                                 rayleigh_species = ['H2', 'He'],
@@ -126,7 +126,7 @@ class Retrieval:
                         verbose=True,const_efficiency_mode=True, sampling_efficiency = 0.5,
                         n_live_points=N_live_points,resume=resume,
                         evidence_tolerance=evidence_tolerance, # default is 0.5, high number -> stops earlier
-                        dump_callback=self.PMN_callback,n_iter_before_update=100)
+                        dump_callback=self.PMN_callback,n_iter_before_update=1)
 
     def PMN_callback(self,n_samples,n_live,n_params,live_points,posterior, 
                     stats,max_ln_L,ln_Z,ln_Z_err,nullcontext):
@@ -135,13 +135,8 @@ class Retrieval:
         #np.save(f'{self.output_dir}/{self.callback_label}bestfit_params.npy',self.bestfit_params)
         self.posterior = posterior[:,:-2] # remove last 2 columns
         #np.save(f'{self.output_dir}/{self.callback_label}posterior.npy',self.posterior)
-        self.final_params,self.final_spectrum=self.get_final_params_and_spectrum()
-        try:
-            figs.summary_plot(self)
-            if self.chemistry in ['equchem','quequchem']:
-                figs.VMR_plot(self)
-        except Exception as error:
-            print("An error occurred:", type(error).__name__, "–", error)
+        self.final_params,self.final_spectrum=self.get_params_and_spectrum()
+        figs.summary_plot(self)
      
     def PMN_analyse(self):
         analyzer = pymultinest.Analyzer(n_params=self.parameters.n_params, 
@@ -169,7 +164,7 @@ class Retrieval:
             minus_err=quantiles[:,0]-medians # -error
         return medians,minus_err,plus_err
 
-    def get_final_params_and_spectrum(self,contribution=True,save=False): 
+    def get_params_and_spectrum(self,save=False): 
         
         # make dict of constant params + evaluated params + their errors
         self.final_params=self.parameters.constant_params.copy() # initialize dict with constant params
@@ -184,7 +179,7 @@ class Retrieval:
         self.final_object=pRT_spectrum(parameters=self.final_params,data_wave=self.data_wave,
                                        target=self.target,species=self.species,
                                        atmosphere_object=self.atmosphere_object,
-                                       chemistry=self.chemistry,contribution=contribution,
+                                       contribution=True,
                                        PT_type=self.PT_type)
         self.final_model=self.final_object.make_spectrum()
         self.get_errors() # for temperature, C/O and [C/H]
@@ -251,7 +246,7 @@ class Retrieval:
                  callback_label='final_',save=False,makefigs=True):
         self.callback_label=callback_label
         self.PMN_analyse() # get/save bestfit params and final posterior
-        self.final_params,self.final_spectrum=self.get_final_params_and_spectrum(save=save) # all params: constant + free + scaling phi + s2
+        self.final_params,self.final_spectrum=self.get_params_and_spectrum(save=save) # all params: constant + free + scaling phi + s2
         if makefigs:
             if callback_label=='final_':
                 figs.make_all_plots(self,only_abundances=only_abundances,only_params=only_params,split_corner=split_corner)
@@ -285,7 +280,7 @@ class Retrieval:
             ex_model=pRT_spectrum(parameters=self.final_params,data_wave=self.data_wave,
                                         target=self.target,species=self.species,
                                         atmosphere_object=self.atmosphere_object,
-                                        chemistry=self.chemistry,contribution=True,
+                                        contribution=True,
                                         PT_type=self.PT_type).make_spectrum()      
             lnL = self.LogLike(ex_model, self.Cov) # call function to generate chi2
             chi2_ex = self.LogLike.chi2_0_red # reduced chi^2

@@ -28,7 +28,7 @@ class Parameters:
             self.cube_copy = cube
         else:
             self.cube_copy = np.array(cube[:ndim])
-        
+
         for i, key_i in enumerate(self.param_keys):
             
             if key_i not in ["T1","T2","T3","T4"]:  # to not set cube[i] for T1-T4 beforehand, must stay [0,1]

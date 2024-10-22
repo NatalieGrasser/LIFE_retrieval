@@ -6,7 +6,6 @@ os.environ['OMP_NUM_THREADS'] = '1' # to avoid using too many CPUs
 
 if getpass.getuser() == "grasser": # when running from LEM
     os.environ['pRT_input_data_path'] ="/net/lem/data2/pRT_input_data"
-    os.environ['OMP_NUM_THREADS'] = '1' # important for MPI
     from mpi4py import MPI 
     comm = MPI.COMM_WORLD # important for MPI
     rank = comm.Get_rank() # important for MPI
@@ -19,7 +18,7 @@ from retrieval import Retrieval
 from parameters import Parameters
 
 # pass configuration as command line argument
-# example: config_run.py test1 200 5
+# example: config_run.py test 200 5
 test_object = sys.argv[1]
 Nlive=int(sys.argv[2]) # number of live points (integer)
 evtol=float(sys.argv[3]) # evidence tolerance (float)
@@ -52,13 +51,15 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PT_grad'):
         free_params.update(pt_params)
         
     # free chemistry, define VMRs
-    chemistry={'log_H2O':([-12,-1],r'log H$_2$O'),
-            'log_CO':([-12,-1],r'log CO'),
-            'log_CO2':([-12,-1],r'log CO$_2$'),
-            'log_CH4':([-12,-1],r'log CH$_4$'),
-            'log_NH3':([-12,-1],r'log NH$_3$'),
-            'log_HCN':([-12,-1],r'log HCN'),
-            'log_H2S':([-12,-1],r'log H$_2$S')}
+    chemistry={'log_H2O':([-12,0],r'log H$_2$O'),
+            'log_CO':([-12,0],r'log CO'),
+            'log_CO2':([-12,0],r'log CO$_2$'),
+            'log_CH4':([-12,0],r'log CH$_4$'),
+            'log_NH3':([-12,0],r'log NH$_3$'),
+            'log_HCN':([-12,0],r'log HCN'),
+            'log_H2S':([-12,0],r'log H$_2$S'),
+            #'log_C2H2':([-12,n],r'log C$_2$H$_2$') # not on lem yet
+            }
         
     cloud_props={'log_opa_base_gray': ([-10,3], r'log $\kappa_{\mathrm{cl},0}$'),  
                 'log_P_base_gray': ([-6,3], r'log $P_{\mathrm{cl},0}$'), # pressure of gray cloud deck

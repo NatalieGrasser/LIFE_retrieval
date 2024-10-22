@@ -31,21 +31,21 @@ def plot_spectrum(retrieval_object,fs=10,**kwargs):
 
     lower=flux-err*retrieval_object.final_params['s2']
     upper=flux+err*retrieval_object.final_params['s2']
-    ax[0].plot(wave,flux,lw=0.8,alpha=1,c='k',label='data')
+    ax[0].plot(wave,flux,lw=1,alpha=1,c='k',label='data')
     ax[0].fill_between(wave,lower,upper,color='k',alpha=0.15,label=f'1 $\sigma$')
-    ax[0].plot(wave,flux_m,lw=0.8,alpha=0.8,c=retrieval_object.color1,label='model')
+    ax[0].plot(wave,flux_m,lw=1,alpha=0.8,c=retrieval_object.color1,label='model')
     
-    ax[1].plot(wave,flux-flux_m,lw=0.8,c=retrieval_object.color1,label='residuals')
+    ax[1].plot(wave,flux-flux_m,lw=1,c=retrieval_object.color1,label='residuals')
     lines = [Line2D([0], [0], color='k',linewidth=2,label='Data'),
             mpatches.Patch(color='k',alpha=0.15,label='1$\sigma$'),
             Line2D([0], [0], color=retrieval_object.color1, linewidth=2,label='Bestfit')]
     ax[0].legend(handles=lines,fontsize=fs) # to only have it once
-    ax[1].plot([np.min(wave),np.max(wave)],[0,0],lw=0.8,alpha=1,c='k')
+    ax[1].plot([np.min(wave),np.max(wave)],[0,0],lw=1,alpha=1,c='k')
         
     ax[0].set_ylabel('Normalized Flux',fontsize=fs)
     ax[1].set_ylabel('Residuals',fontsize=fs)
-    ax[0].set_xlim(np.min(wave)-10,np.max(wave)+10)
-    ax[1].set_xlim(np.min(wave)-10,np.max(wave)+10)
+    ax[0].set_xlim(np.min(wave),np.max(wave))
+    ax[1].set_xlim(np.min(wave),np.max(wave))
     tick_spacing=10
     ax[1].xaxis.set_minor_locator(ticker.MultipleLocator(tick_spacing))
     ax[0].tick_params(labelsize=fs)
@@ -115,8 +115,8 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
     summed_contr=retrieval_object.final_object.contr_em
     contribution_plot=summed_contr/np.max(summed_contr)*(xmax-xmin)+xmin
     ax.plot(contribution_plot,retrieval_object.final_object.pressure,linestyle='dashed',
-            lw=1.5,alpha=0.8,color=retrieval_object.color3)
-    lines.append(Line2D([0], [0], color=retrieval_object.color3, alpha=0.8,
+            lw=1.5,alpha=0.8,color=retrieval_object.color1)
+    lines.append(Line2D([0], [0], color=retrieval_object.color1, alpha=0.8,
                         linewidth=1.5, linestyle='--',label='Em. Contr.'))
         
     ax.set(xlabel='Temperature [K]', ylabel='Pressure [bar]',yscale='log',
@@ -176,7 +176,7 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
     fig = corner.corner(plot_posterior, 
                         labels=labels, 
                         title_kwargs={'fontsize':fs},
-                        label_kwargs={'fontsize':fs*0.8},
+                        label_kwargs={'fontsize':fs*0.9},
                         color=retrieval_object.color1,
                         linewidths=0.5,
                         fill_contours=True,
@@ -240,16 +240,15 @@ def make_all_plots(retrieval_object,only_params=None,split_corner=True):
     
 def summary_plot(retrieval_object):
 
-    fs=13
-    only_params=['rv','vsini','log_g','T0','log_H2O','log_12CO',
-                 'log_13CO','log_HF','log_H2(18)O','log_H2S']
+    fs=14
+    only_params=['log_H2O','log_CO','log_CO2','log_CH4','log_NH3','log_H2S','log_HCN']
     fig, ax = cornerplot(retrieval_object,getfig=True,only_params=only_params,figsize=(17,17),fs=fs)
     l, b, w, h = [0.37,0.84,0.6,0.15] # left, bottom, width, height
     ax_spec = fig.add_axes([l,b,w,h])
     ax_res = fig.add_axes([l,b-0.03,w,h-0.12])
     plot_spectrum(retrieval_object,ax=(ax_spec,ax_res),inset=False,fs=fs)
 
-    l, b, w, h = [0.68,0.47,0.29,0.29] # left, bottom, width, height
+    l, b, w, h = [0.7,0.47,0.27,0.27] # left, bottom, width, height
     ax_PT = fig.add_axes([l,b,w,h])
     plot_pt(retrieval_object,ax=ax_PT,fs=fs)
     fig.savefig(f'{retrieval_object.output_dir}/{retrieval_object.callback_label}summary.pdf',
