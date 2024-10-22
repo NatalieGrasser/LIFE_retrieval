@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import getpass
 
 if getpass.getuser() == "grasser": # when running from LEM
-    from LIFE_retrieval.pRT_model import pRT_spectrum
+    #from LIFE_retrieval.pRT_model import pRT_spectrum
     #import LIFE_retrieval.figures as figs
     #from LIFE_retrieval.covariance import *
     #from LIFE_retrieval.log_likelihood import *
