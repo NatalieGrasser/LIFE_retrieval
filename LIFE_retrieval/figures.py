@@ -29,12 +29,12 @@ def plot_spectrum(retrieval_object,fs=10,**kwargs):
     lower=flux-err*retrieval_object.final_params['s2']
     upper=flux+err*retrieval_object.final_params['s2']
     ax[0].plot(wave,flux,lw=1.2,alpha=1,c='k',label='data')
-    ax[0].fill_between(wave,lower,upper,color='k',alpha=0.05,label=f'1 $\sigma$')
+    ax[0].fill_between(wave,lower,upper,color='k',alpha=0.1,label=f'1 $\sigma$')
     ax[0].plot(wave,flux_m,lw=1.2,alpha=0.8,c=retrieval_object.color1,label='model')
     
     ax[1].plot(wave,flux-flux_m,lw=1.2,c=retrieval_object.color1,label='residuals')
     lines = [Line2D([0], [0], color='k',linewidth=2,label='Data'),
-            mpatches.Patch(color='k',alpha=0.05,label='1$\sigma$'),
+            mpatches.Patch(color='k',alpha=0.1,label='1$\sigma$'),
             Line2D([0], [0], color=retrieval_object.color1, linewidth=2,label='Bestfit')]
     ax[0].legend(handles=lines,fontsize=fs) # to only have it once
     ax[1].plot([np.min(wave),np.max(wave)],[0,0],lw=1.2,alpha=1,c='k')
@@ -48,6 +48,7 @@ def plot_spectrum(retrieval_object,fs=10,**kwargs):
     ax[0].tick_params(labelsize=fs)
     ax[1].tick_params(labelsize=fs)
     ax[1].set_xlabel('Wavelength [$\mu$m]',fontsize=fs)
+    ax[0].get_xaxis().set_ticks([])
 
     plt.subplots_adjust(wspace=0, hspace=0)
     if 'ax' not in kwargs:
@@ -173,7 +174,7 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
     fig = corner.corner(plot_posterior, 
                         labels=labels, 
                         title_kwargs={'fontsize':fs},
-                        label_kwargs={'fontsize':fs*0.9},
+                        label_kwargs={'fontsize':fs*0.85},
                         color=retrieval_object.color1,
                         linewidths=0.5,
                         fill_contours=True,

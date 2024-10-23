@@ -247,14 +247,13 @@ class Retrieval:
         self.final_params['C/H']=median
         self.final_params['C/H_err']=(minus_err,plus_err)
 
-    def evaluate(self,only_abundances=False,only_params=None,split_corner=True,
-                 callback_label='final_',save=False,makefigs=True):
+    def evaluate(self,callback_label='final_',save=False,makefigs=True):
         self.callback_label=callback_label
         self.PMN_analyse() # get/save bestfit params and final posterior
         self.final_params,self.final_spectrum=self.get_params_and_spectrum(save=save) # all params: constant + free + scaling phi + s2
         if makefigs:
             if callback_label=='final_':
-                figs.make_all_plots(self,only_abundances=only_abundances,only_params=only_params,split_corner=split_corner)
+                figs.make_all_plots(self,split_corner=True)
             else:
                 figs.summary_plot(self)
 
