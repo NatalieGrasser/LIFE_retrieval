@@ -11,7 +11,6 @@ from scipy.interpolate import CubicSpline
 import matplotlib.patches as mpatches
 import matplotlib.ticker as ticker
 import warnings
-from petitRADTRANS import Radtrans
 warnings.filterwarnings("ignore", category=UserWarning) 
 
 def plot_spectrum(retrieval_object,fs=10,**kwargs):
@@ -19,15 +18,15 @@ def plot_spectrum(retrieval_object,fs=10,**kwargs):
     wave=retrieval_object.data_wave
     flux=retrieval_object.data_flux
     err=retrieval_object.data_err
-    flux_m=retrieval_object.final_spectrum
+    flux_m=retrieval_object.model_flux
 
     if 'ax' in kwargs:
         ax=kwargs.get('ax')
     else:
         fig,ax=plt.subplots(2,1,figsize=(9.5,3),dpi=200,gridspec_kw={'height_ratios':[2,0.7]})
 
-    lower=flux-err*retrieval_object.final_params['s2']
-    upper=flux+err*retrieval_object.final_params['s2']
+    lower=flux-err*retrieval_object.params_dict['s2']
+    upper=flux+err*retrieval_object.params_dict['s2']
     ax[0].plot(wave,flux,lw=1.2,alpha=1,c='k',label='data')
     ax[0].fill_between(wave,lower,upper,color='k',alpha=0.1,label=f'1 $\sigma$')
     ax[0].plot(wave,flux_m,lw=1.2,alpha=0.8,c=retrieval_object.color1,label='model')
@@ -67,20 +66,20 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
     # plot PT-profile + errors on retrieved temperatures
     def plot_temperature(retr_obj,ax,olabel): 
         if retr_obj.PT_type=='PTknot':
-            ax.plot(retr_obj.final_object.temperature,
-                retr_obj.final_object.pressure,color=retr_obj.color1,lw=2) 
+            ax.plot(retr_obj.model_object.temperature,
+                retr_obj.model_object.pressure,color=retr_obj.color1,lw=2) 
             medians=[]
             errs=[]
-            log_P_knots=retr_obj.final_object.log_P_knots
+            log_P_knots=retr_obj.model_object.log_P_knots
             for key in ['T4','T3','T2','T1','T0']: # order T4,T3,T2,T1,T0 like log_P_knots
-                medians.append(retr_obj.final_params[key])
-                errs.append(retr_obj.final_params[f'{key}_err'])
+                medians.append(retr_obj.params_dict[key])
+                errs.append(retr_obj.params_dict[f'{key}_err'])
             errs=np.array(errs)
             for x in [1,2,3]: # plot 1-3 sigma errors
                 lower = CubicSpline(log_P_knots,medians+x*errs[:,0])(np.log10(retr_obj.pressure))
                 upper = CubicSpline(log_P_knots,medians+x*errs[:,1])(np.log10(retr_obj.pressure))
                 ax.fill_betweenx(retr_obj.pressure,lower,upper,color=retr_obj.color1,alpha=0.15)
-            ax.scatter(medians,10**retr_obj.final_object.log_P_knots,color=retr_obj.color1)
+            ax.scatter(medians,10**retr_obj.model_object.log_P_knots,color=retr_obj.color1)
             xmin=np.min(lower)-100
             xmax=np.max(upper)+100
             lines.append(Line2D([0],[0],marker='o',color=retrieval_object.color1,markerfacecolor=retrieval_object.color1,
@@ -91,13 +90,13 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
             derr=[]
             for i in range(5):
                 key=f'dlnT_dlnP_{i}'
-                dlnT_dlnP_knots.append(retr_obj.final_params[key]) # gradient median values
-                derr.append(retr_obj.final_params[f'{key}_err']) # -/+ errors
+                dlnT_dlnP_knots.append(retr_obj.params_dict[key]) # gradient median values
+                derr.append(retr_obj.params_dict[f'{key}_err']) # -/+ errors
             derr=np.array(derr) # gradient errors
-            T0=retr_obj.final_params['T0']
-            err=retr_obj.final_params['T0_err']
-            temperature=retr_obj.final_object.make_pt(dlnT_dlnP_knots=dlnT_dlnP_knots,T_base=T0)
-            ax.plot(temperature,retr_obj.final_object.pressure,color=retr_obj.color1,lw=2) 
+            T0=retr_obj.params_dict['T0']
+            err=retr_obj.params_dict['T0_err']
+            temperature=retr_obj.model_object.make_pt(dlnT_dlnP_knots=dlnT_dlnP_knots,T_base=T0)
+            ax.plot(temperature,retr_obj.model_object.pressure,color=retr_obj.color1,lw=2) 
             # get 1-2-3 sigma of temp_dist, has shape (samples, n_atm_layers)
             quantiles = np.array([np.percentile(retr_obj.temp_dist[:,i], [0.2,2.3,15.9,50.0,84.1,97.7,99.8], axis=-1) for i in range(retr_obj.temp_dist.shape[1])])
             ax.fill_betweenx(retr_obj.pressure,quantiles[:,0],quantiles[:,-1],color=retr_obj.color1,alpha=0.15)
@@ -110,16 +109,16 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
         return xmin,xmax
 
     xmin,xmax=plot_temperature(retrieval_object,ax,olabel='Retrieval')
-    summed_contr=retrieval_object.final_object.contr_em
+    summed_contr=retrieval_object.model_object.contr_em
     contribution_plot=summed_contr/np.max(summed_contr)*(xmax-xmin)+xmin
-    ax.plot(contribution_plot,retrieval_object.final_object.pressure,linestyle='dashed',
+    ax.plot(contribution_plot,retrieval_object.model_object.pressure,linestyle='dashed',
             lw=1.5,alpha=0.8,color=retrieval_object.color1)
     lines.append(Line2D([0], [0], color=retrieval_object.color1, alpha=0.8,
                         linewidth=1.5, linestyle='--',label='Em. Contr.'))
         
     ax.set(xlabel='Temperature [K]', ylabel='Pressure [bar]',yscale='log',
-        ylim=(np.nanmax(retrieval_object.final_object.pressure),
-        np.nanmin(retrieval_object.final_object.pressure)),xlim=(xmin,xmax))
+        ylim=(np.nanmax(retrieval_object.model_object.pressure),
+        np.nanmin(retrieval_object.model_object.pressure)),xlim=(xmin,xmax))
     
     ax.legend(handles=lines,fontsize=fs)
     ax.tick_params(labelsize=fs)
@@ -229,17 +228,23 @@ def make_all_plots(retrieval_object,only_params=None,split_corner=True):
     plot_spectrum(retrieval_object)
     plot_pt(retrieval_object)
     summary_plot(retrieval_object)
-    opacity_plot(retrieval_object)
     if split_corner: # split corner plot to avoid massive files
         cornerplot(retrieval_object,only_abundances=True)
         cornerplot(retrieval_object,not_abundances=True)
     else: # make cornerplot with all parameters, could be huge, avoid this
         cornerplot(retrieval_object,only_params=only_params)
     
-def summary_plot(retrieval_object):
+def summary_plot(retrieval_object,fs=14):
 
-    fs=14
-    only_params=['log_H2O','log_CO','log_CO2','log_CH4','log_NH3','log_H2S','log_HCN']
+    # plot 7 most abundant species
+    only_params=[]
+    abunds=[]
+    species=retrieval_object.chem_species
+    for spec in species:
+        abunds.append(retrieval_object.params_dict[spec])
+    abunds, species = zip(*sorted(zip(abunds, species)))
+    only_params=species[-7:] # get largest 7
+    #only_params=['log_H2O','log_CO','log_CO2','log_CH4','log_NH3','log_H2S','log_HCN']
     fig, ax = cornerplot(retrieval_object,getfig=True,only_params=only_params,figsize=(17,17),fs=fs)
     l, b, w, h = [0.4,0.84,0.57,0.15] # left, bottom, width, height
     ax_spec = fig.add_axes([l,b,w,h])
@@ -252,45 +257,3 @@ def summary_plot(retrieval_object):
     fig.savefig(f'{retrieval_object.output_dir}/{retrieval_object.callback_label}summary.pdf',
                 bbox_inches="tight",dpi=200)
     plt.close()
-
-def opacity_plot(retrieval_object):
-    Kband=retrieval_object.target.K2166
-    molecules=['H2O_pokazatel_main_iso','H2O_181_HotWat78','CO_main_iso','CO_36','H2S_ExoMol_main_iso','HF_main_iso']
-    names=['H2O','H2(18)O','12CO','13CO','H2S','HF']
-    labels=['H$_2^{16}$O','H$_2^{18}$O','$^{12}$CO','$^{13}$CO','H$_2$S','HF']
-
-    wlen_range=np.array([np.min(Kband),np.max(Kband)])*1e-3 # nm to microns
-    atmosphere = Radtrans(line_species=molecules,
-                        rayleigh_species = ['H2', 'He'],
-                        continuum_opacities = ['H2-H2', 'H2-He'],
-                        wlen_bords_micron=wlen_range, 
-                        mode='lbl',
-                        lbl_opacity_sampling=10)
-    
-    T = np.array([1400]).reshape(1)
-    wave_cm, opas = atmosphere.get_opa(T)
-    wave_nm = wave_cm*1e7
-    ymin,ymax=5e-8,5e2
-
-    fig,ax=plt.subplots(1,1,figsize=(6,3),dpi=200)
-    lines=[]
-    for i,m in enumerate(molecules):
-        abund=10**retrieval_object.final_params[f'log_{names[i]}']
-        #print(names[i],abund)
-        spec,=plt.plot(wave_nm,opas[m]*abund,lw=0.5)
-        lines.append(Line2D([0],[0],color=spec.get_color(),
-                        linewidth=2,label=labels[i]))
-        
-    plt.yscale('log')
-    plt.ylabel('Opacity [cm$^2$/g]')
-    plt.xlabel("Wavelength [$\mu$m]")
-    plt.xlim(np.min(retrieval_object.target.K2166),np.max(retrieval_object.target.K2166))
-    plt.ylim(ymin,ymax)
-    legend=plt.legend(handles=lines,ncol=3,loc='upper center')
-    legend.get_frame().set_alpha(None)
-    legend.get_frame().set_facecolor((0, 0, 0, 0))
-    legend.get_frame().set_edgecolor((0, 0, 0, 0))
-    fig.savefig(f'{retrieval_object.output_dir}/{retrieval_object.callback_label}opacities.pdf',
-                bbox_inches="tight",dpi=200)
-    plt.close()
-

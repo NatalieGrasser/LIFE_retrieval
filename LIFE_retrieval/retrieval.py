@@ -9,20 +9,13 @@ import matplotlib.pyplot as plt
 import getpass
 
 if getpass.getuser() == "grasser": # when running from LEM
-    #from LIFE_retrieval.pRT_model import pRT_spectrum
-    #import LIFE_retrieval.figures as figs
-    #from LIFE_retrieval.covariance import *
-    #from LIFE_retrieval.log_likelihood import *
-    from pRT_model import pRT_spectrum
-    import figures as figs
-    from covariance import *
-    from log_likelihood import *
+    os.environ['pRT_input_data_path'] = "/net/lem/data2/pRT_input_data"
 elif getpass.getuser() == "natalie": # when testing from my laptop
     os.environ['pRT_input_data_path'] = "/home/natalie/.local/lib/python3.8/site-packages/petitRADTRANS/input_data_std/input_data"
-    from pRT_model import pRT_spectrum
-    import figures as figs
-    from covariance import *
-    from log_likelihood import *
+from pRT_model import pRT_spectrum
+import figures as figs
+from covariance import *
+from log_likelihood import *
 
 
 class Retrieval:
@@ -42,15 +35,13 @@ class Retrieval:
         self.output_dir = pathlib.Path(f'{self.cwd}/{self.target.name}/{self.output_name}')
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # cloud properties
+        self.cloud_mode='gray'
         self.PT_type=PT_type
-        self.lbl_opacity_sampling=1000
         self.n_atm_layers=50
         self.pressure = np.logspace(-6,2,self.n_atm_layers)
 
         mask = self.mask_isfinite # only finite pixels
         self.Cov = Covariance(err=self.data_err[mask]) # use simple diagonal covariance matrix
-    
         self.LogLike = LogLikelihood(retrieval_object=self,scale_flux=True,scale_err=True)
 
         # load atmosphere object here and not in likelihood/pRT_model to make it faster
@@ -62,7 +53,7 @@ class Retrieval:
         # will be updated, but needed as None until then
         self.bestfit_params=None 
         self.posterior = None
-        self.final_params=None
+        self.params_dict=None
         self.calc_errors=False
 
         self.color1=target.color1
@@ -106,12 +97,7 @@ class Retrieval:
             return atmosphere_object
 
     def PMN_lnL(self,cube=None,ndim=None,nparams=None):
-        self.model_object=pRT_spectrum(parameters=self.parameters.params,
-                                     data_wave=self.data_wave,
-                                     target=self.target,
-                                     atmosphere_object=self.atmosphere_object,
-                                     species=self.species,
-                                     PT_type=self.PT_type)
+        self.model_object=pRT_spectrum(self)
         
         # pass exit through a self.thing attibute and not kwarg, or pmn will be confused
         if self.calc_errors==True: # only for calc errors on Fe/H, C/O, temperatures
@@ -140,7 +126,7 @@ class Retrieval:
         #np.save(f'{self.output_dir}/{self.callback_label}bestfit_params.npy',self.bestfit_params)
         self.posterior = posterior[:,:-2] # remove last 2 columns
         #np.save(f'{self.output_dir}/{self.callback_label}posterior.npy',self.posterior)
-        self.final_params,self.final_spectrum=self.get_params_and_spectrum()
+        self.params_dict,self.model_flux=self.get_params_and_spectrum()
         figs.summary_plot(self)
      
     def PMN_analyse(self):
@@ -172,44 +158,40 @@ class Retrieval:
     def get_params_and_spectrum(self,save=False): 
         
         # make dict of constant params + evaluated params + their errors
-        self.final_params=self.parameters.constant_params.copy() # initialize dict with constant params
+        self.params_dict=self.parameters.constant_params.copy() # initialize dict with constant params
         medians,minus_err,plus_err=self.get_quantiles(self.posterior)
 
         for i,key in enumerate(self.parameters.param_keys):
-            self.final_params[key]=medians[i] # add median of evaluated params (more robust)
-            self.final_params[f'{key}_err']=(minus_err[i],plus_err[i]) # add errors of evaluated params
-            self.final_params[f'{key}_bf']=self.bestfit_params[i] # bestfit params with highest lnL (can differ from median, not as robust)
+            self.params_dict[key]=medians[i] # add median of evaluated params (more robust)
+            self.params_dict[f'{key}_err']=(minus_err[i],plus_err[i]) # add errors of evaluated params
+            self.params_dict[f'{key}_bf']=self.bestfit_params[i] # bestfit params with highest lnL (can differ from median, not as robust)
 
         # create final spectrum
-        self.final_object=pRT_spectrum(parameters=self.final_params,data_wave=self.data_wave,
-                                       target=self.target,species=self.species,
-                                       atmosphere_object=self.atmosphere_object,
-                                       contribution=True,
-                                       PT_type=self.PT_type)
-        self.final_model=self.final_object.make_spectrum()
+        self.model_object=pRT_spectrum(self,contribution=True)
+        self.model_flux=self.model_object.make_spectrum()
         self.get_errors() # for temperature, C/O and [C/H]
 
         # get scaling parameters phi and s2 of bestfit model through likelihood
-        self.log_likelihood = self.LogLike(self.final_model, self.Cov)
-        self.final_params['phi']=self.LogLike.phi
-        self.final_params['s2']=self.LogLike.s2
+        self.log_likelihood = self.LogLike(self.model_flux, self.Cov)
+        self.params_dict['phi']=self.LogLike.phi
+        self.params_dict['s2']=self.LogLike.s2
         if self.callback_label=='final_':
-            self.final_params['chi2']=self.LogLike.chi2_0_red # save reduced chi^2 of fiducial model
-            self.final_params['lnZ']=self.lnZ # save lnZ of fiducial model
+            self.params_dict['chi2']=self.LogLike.chi2_0_red # save reduced chi^2 of fiducial model
+            self.params_dict['lnZ']=self.lnZ # save lnZ of fiducial model
 
-        phi=self.final_params['phi']
-        self.final_spectrum=phi*self.final_model # scale model accordingly
+        phi=self.params_dict['phi']
+        self.model_flux=phi*self.model_flux # scale model accordingly
         
         spectrum=np.full(shape=(self.n_pixels,2),fill_value=np.nan)
         spectrum[:,0]=self.data_wave
-        spectrum[:,1]=self.final_spectrum
+        spectrum[:,1]=self.model_flux
 
         if save==True:
             with open(f'{self.output_dir}/{self.callback_label}params_dict.pickle','wb') as file:
-                pickle.dump(self.final_params,file)
+                pickle.dump(self.params_dict,file)
             np.savetxt(f'{self.output_dir}/{self.callback_label}spectrum.txt',spectrum,delimiter=' ',header='wavelength(nm) flux')
         
-        return self.final_params,self.final_spectrum
+        return self.params_dict,self.model_flux
 
     def get_errors(self): # can only be run after self.evaluate()
 
@@ -240,17 +222,17 @@ class Retrieval:
         self.calc_errors=False # set back to False when finished
 
         median,minus_err,plus_err=self.get_quantiles(CO_distribution,flat=True)
-        self.final_params['C/O']=median
-        self.final_params['C/O_err']=(minus_err,plus_err)
+        self.params_dict['C/O']=median
+        self.params_dict['C/O_err']=(minus_err,plus_err)
 
         median,minus_err,plus_err=self.get_quantiles(CH_distribution,flat=True)
-        self.final_params['C/H']=median
-        self.final_params['C/H_err']=(minus_err,plus_err)
+        self.params_dict['C/H']=median
+        self.params_dict['C/H_err']=(minus_err,plus_err)
 
     def evaluate(self,callback_label='final_',save=False,makefigs=True):
         self.callback_label=callback_label
         self.PMN_analyse() # get/save bestfit params and final posterior
-        self.final_params,self.final_spectrum=self.get_params_and_spectrum(save=save) # all params: constant + free + scaling phi + s2
+        self.params_dict,self.model_flux=self.get_params_and_spectrum(save=save) # all params: constant + free + scaling phi + s2
         if makefigs:
             if callback_label=='final_':
                 figs.make_all_plots(self,split_corner=True)
@@ -281,11 +263,7 @@ class Retrieval:
             self.callback_label=f'final_wo{molecule}_'
             self.evaluate(callback_label=self.callback_label) # gets self.lnZ_ex
 
-            ex_model=pRT_spectrum(parameters=self.final_params,data_wave=self.data_wave,
-                                        target=self.target,species=self.species,
-                                        atmosphere_object=self.atmosphere_object,
-                                        contribution=True,
-                                        PT_type=self.PT_type).make_spectrum()      
+            ex_model=pRT_spectrum(self).make_spectrum()      
             lnL = self.LogLike(ex_model, self.Cov) # call function to generate chi2
             chi2_ex = self.LogLike.chi2_0_red # reduced chi^2
 
@@ -338,7 +316,7 @@ class Retrieval:
         else:
             save=False
             with open(final_dict,'rb') as file:
-                self.final_params=pickle.load(file) 
+                self.params_dict=pickle.load(file) 
         self.evaluate(save=save)
         if bayes==True:
             bayes_dict=self.bayes_evidence(molecules)

@@ -5,46 +5,35 @@ from astropy import constants as const
 from astropy import units as u
 import pandas as pd
 from scipy.interpolate import interp1d
-
 import getpass
 if getpass.getuser() == "grasser": # when runnig from LEM
     import matplotlib
     matplotlib.use('Agg') # disable interactive plotting
-    #from LIFE_retrieval.spectrum import Spectrum, convolve_to_resolution
-    from spectrum import Spectrum, convolve_to_resolution
-
-elif getpass.getuser() == "natalie": # when testing from my laptop
-    from spectrum import Spectrum, convolve_to_resolution
+from spectrum import Spectrum, convolve_to_resolution
 
 class pRT_spectrum:
 
     def __init__(self,
-                 parameters,
-                 data_wave,
-                 target,
-                 species,
-                 atmosphere_object,
-                 spectral_resolution=250,  
-                 cloud_mode='gray',
-                 contribution=False, # only for plotting atmosphere.contr_em
-                 PT_type='PTgrad'):
+                 retrieval_object,
+                 spectral_resolution=250,
+                 contribution=False):
         
-        self.params=parameters
-        self.data_wave=data_wave
-        self.target=target
-        self.species=species
+        self.params=retrieval_object.parameters.params
+        self.data_wave=retrieval_object.data_wave
+        self.target=retrieval_object.target
+        self.species=retrieval_object.species
         self.spectral_resolution=spectral_resolution
-        self.atmosphere_object=atmosphere_object
+        self.atmosphere_object=retrieval_object.atmosphere_object
 
-        self.n_atm_layers=50
-        self.pressure = np.logspace(-6,2,self.n_atm_layers)  # like in deRegt+2024
-        self.PT_type=PT_type
+        self.n_atm_layers=retrieval_object.n_atm_layers
+        self.pressure = retrieval_object.pressure
+        self.PT_type=retrieval_object.PT_type
         self.temperature = self.make_pt() #P-T profile
 
         self.give_absorption_opacity=None
         self.gravity = 10**self.params['log_g'] 
         self.contribution=contribution
-        self.cloud_mode=cloud_mode
+        self.cloud_mode=retrieval_object.cloud_mode
 
         self.mass_fractions, self.CO, self.FeH = self.free_chemistry(self.species,self.params)
         self.MMW = self.mass_fractions['MMW']
@@ -144,8 +133,6 @@ class pRT_spectrum:
                         give_absorption_opacity=self.give_absorption_opacity)
 
         wl = const.c.to(u.km/u.s).value/atmosphere.freq/1e-9 # mircons
-        if np.nansum(atmosphere.flux)==0:
-            print(self.params)
         flux = atmosphere.flux/np.nanmean(atmosphere.flux)
         spec = Spectrum(flux, wl)
         spec = convolve_to_resolution(spec,self.spectral_resolution)
