@@ -105,9 +105,6 @@ class Retrieval:
         
         self.model_flux=self.model_object.make_spectrum()
         self.Cov(self.parameters.params)
-        if True: # debugging
-            plt.plot(self.data_wave,self.data_flux,lw=0.8)
-            plt.plot(self.data_wave,self.model_flux,alpha=0.7,lw=0.8)
         ln_L = self.LogLike(self.model_flux, self.Cov) # retrieve log-likelihood
         return ln_L
 
@@ -121,11 +118,9 @@ class Retrieval:
 
     def PMN_callback(self,n_samples,n_live,n_params,live_points,posterior, 
                     stats,max_ln_L,ln_Z,ln_Z_err,nullcontext):
-        #self.callback_label='live_' # label for plots
         self.bestfit_params = posterior[np.argmax(posterior[:,-2]),:-2] # parameters of best-fitting model
-        #np.save(f'{self.output_dir}/{self.callback_label}bestfit_params.npy',self.bestfit_params)
         self.posterior = posterior[:,:-2] # remove last 2 columns
-        #np.save(f'{self.output_dir}/{self.callback_label}posterior.npy',self.posterior)
+        self.model_object=pRT_spectrum(self)
         self.params_dict,self.model_flux=self.get_params_and_spectrum()
         figs.summary_plot(self)
      
@@ -155,7 +150,7 @@ class Retrieval:
             minus_err=quantiles[:,0]-medians # -error
         return medians,minus_err,plus_err
 
-    def get_params_and_spectrum(self,save=False): 
+    def get_params_and_spectrum(self): 
         
         # make dict of constant params + evaluated params + their errors
         self.params_dict=self.parameters.constant_params.copy() # initialize dict with constant params
@@ -166,7 +161,7 @@ class Retrieval:
             self.params_dict[f'{key}_err']=(minus_err[i],plus_err[i]) # add errors of evaluated params
             self.params_dict[f'{key}_bf']=self.bestfit_params[i] # bestfit params with highest lnL (can differ from median, not as robust)
 
-        # create final spectrum
+        # create model spectrum
         self.model_object=pRT_spectrum(self,contribution=True)
         self.model_flux=self.model_object.make_spectrum()
         self.get_errors() # for temperature, C/O and [C/H]
@@ -181,12 +176,11 @@ class Retrieval:
 
         phi=self.params_dict['phi']
         self.model_flux=phi*self.model_flux # scale model accordingly
-        
         spectrum=np.full(shape=(self.n_pixels,2),fill_value=np.nan)
         spectrum[:,0]=self.data_wave
         spectrum[:,1]=self.model_flux
 
-        if save==True:
+        if self.callback_label=='final_': # only save if final
             with open(f'{self.output_dir}/{self.callback_label}params_dict.pickle','wb') as file:
                 pickle.dump(self.params_dict,file)
             np.savetxt(f'{self.output_dir}/{self.callback_label}spectrum.txt',spectrum,delimiter=' ',header='wavelength(nm) flux')
@@ -229,10 +223,10 @@ class Retrieval:
         self.params_dict['C/H']=median
         self.params_dict['C/H_err']=(minus_err,plus_err)
 
-    def evaluate(self,callback_label='final_',save=False,makefigs=True):
+    def evaluate(self,callback_label='final_',makefigs=True):
         self.callback_label=callback_label
         self.PMN_analyse() # get/save bestfit params and final posterior
-        self.params_dict,self.model_flux=self.get_params_and_spectrum(save=save) # all params: constant + free + scaling phi + s2
+        self.params_dict,self.model_flux=self.get_params_and_spectrum() # all params: constant + free + scaling phi + s2
         if makefigs:
             if callback_label=='final_':
                 figs.make_all_plots(self,split_corner=True)
@@ -312,12 +306,10 @@ class Retrieval:
         final_dict=pathlib.Path(f'{self.output_dir}/final_params_dict.pickle')
         if final_dict.exists()==False:
             self.PMN_run(N_live_points=self.N_live_points,evidence_tolerance=self.evidence_tolerance)
-            save=True
         else:
-            save=False
             with open(final_dict,'rb') as file:
                 self.params_dict=pickle.load(file) 
-        self.evaluate(save=save)
+        self.evaluate()
         if bayes==True:
             bayes_dict=self.bayes_evidence(molecules)
             print('bayes_dict=\n',bayes_dict)
