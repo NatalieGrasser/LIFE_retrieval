@@ -120,7 +120,6 @@ class Retrieval:
                     stats,max_ln_L,ln_Z,ln_Z_err,nullcontext):
         self.bestfit_params = posterior[np.argmax(posterior[:,-2]),:-2] # parameters of best-fitting model
         self.posterior = posterior[:,:-2] # remove last 2 columns
-        self.model_object=pRT_spectrum(self)
         self.params_dict,self.model_flux=self.get_params_and_spectrum()
         figs.summary_plot(self)
      

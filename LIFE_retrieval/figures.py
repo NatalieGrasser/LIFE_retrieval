@@ -12,6 +12,7 @@ import matplotlib.patches as mpatches
 import matplotlib.ticker as ticker
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning) 
+from pRT_model import pRT_spectrum
 
 def plot_spectrum(retrieval_object,fs=10,**kwargs):
 
@@ -109,7 +110,8 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
         return xmin,xmax
 
     xmin,xmax=plot_temperature(retrieval_object,ax,olabel='Retrieval')
-    summed_contr=retrieval_object.model_object.contr_em
+    model_object=pRT_spectrum(retrieval_object)
+    summed_contr=model_object.contr_em
     contribution_plot=summed_contr/np.max(summed_contr)*(xmax-xmin)+xmin
     ax.plot(contribution_plot,retrieval_object.model_object.pressure,linestyle='dashed',
             lw=1.5,alpha=0.8,color=retrieval_object.color1)
