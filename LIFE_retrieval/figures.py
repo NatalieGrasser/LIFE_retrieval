@@ -110,7 +110,7 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
         return xmin,xmax
 
     xmin,xmax=plot_temperature(retrieval_object,ax,olabel='Retrieval')
-    model_object=pRT_spectrum(retrieval_object)
+    model_object=pRT_spectrum(retrieval_object,contribution=True)
     summed_contr=model_object.contr_em
     contribution_plot=summed_contr/np.max(summed_contr)*(xmax-xmin)+xmin
     ax.plot(contribution_plot,retrieval_object.model_object.pressure,linestyle='dashed',
