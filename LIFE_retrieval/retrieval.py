@@ -161,7 +161,7 @@ class Retrieval:
             self.params_dict[f'{key}_bf']=self.bestfit_params[i] # bestfit params with highest lnL (can differ from median, not as robust)
 
         # create model spectrum
-        self.model_object=pRT_spectrum(self,contribution=True)
+        self.model_object=pRT_spectrum(self)
         self.model_flux=self.model_object.make_spectrum()
         self.get_errors() # for temperature, C/O and [C/H]
 
