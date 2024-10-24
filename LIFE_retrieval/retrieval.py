@@ -102,10 +102,15 @@ class Retrieval:
         # pass exit through a self.thing attibute and not kwarg, or pmn will be confused
         if self.calc_errors==True: # only for calc errors on Fe/H, C/O, temperatures
             return
-        
+
         self.model_flux=self.model_object.make_spectrum()
         self.Cov(self.parameters.params)
         ln_L = self.LogLike(self.model_flux, self.Cov) # retrieve log-likelihood
+
+        if True:
+            plt.plot(self.data_wave,self.data_flux)
+            plt.plot(self.data_wave,self.model_flux,alpha=0.7)
+
         return ln_L
 
     def PMN_run(self,N_live_points=400,evidence_tolerance=0.5,resume=False):

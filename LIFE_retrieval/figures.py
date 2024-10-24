@@ -246,7 +246,7 @@ def summary_plot(retrieval_object,fs=14):
     for spec in species:
         abunds.append(retrieval_object.params_dict[spec])
     abunds, species = zip(*sorted(zip(abunds, species)))
-    only_params=species[-7:] # get largest 7
+    only_params=species[-7:][::-1] # get largest 7
     #only_params=['log_H2O','log_CO','log_CO2','log_CH4','log_NH3','log_H2S','log_HCN']
     fig, ax = cornerplot(retrieval_object,getfig=True,only_params=only_params,figsize=(17,17),fs=fs)
     l, b, w, h = [0.4,0.84,0.57,0.15] # left, bottom, width, height

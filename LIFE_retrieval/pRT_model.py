@@ -5,11 +5,11 @@ from astropy import constants as const
 from astropy import units as u
 import pandas as pd
 from scipy.interpolate import interp1d
+from scipy.ndimage import gaussian_filter
 import getpass
 if getpass.getuser() == "grasser": # when runnig from LEM
     import matplotlib
     matplotlib.use('Agg') # disable interactive plotting
-from spectrum import Spectrum, convolve_to_resolution
 
 class pRT_spectrum:
 
@@ -134,11 +134,10 @@ class pRT_spectrum:
 
         wl = const.c.to(u.km/u.s).value/atmosphere.freq/1e-9 # mircons
         flux = atmosphere.flux/np.nanmean(atmosphere.flux)
-        spec = Spectrum(flux, wl)
-        spec = convolve_to_resolution(spec,self.spectral_resolution)
+        flux = self.convolve_to_resolution(wl, flux, self.spectral_resolution)
 
         # Interpolate/rebin onto the data's wavelength grid
-        flux = np.interp(self.data_wave, spec.wavelengths, spec)
+        flux = np.interp(self.data_wave, wl, flux)
 
         if self.contribution==True:
             contr_em = atmosphere.contr_em # emission contribution
@@ -187,3 +186,24 @@ class pRT_spectrum:
             self.temperature = temperature[::-1] # reverse order, pRT reads temps from top to bottom of atm
         
         return self.temperature
+    
+    def convolve_to_resolution(self, wave, flux, out_res, in_res=None):
+        
+        in_wlen = wave # in nm
+        in_flux = flux
+        if isinstance(in_wlen, u.Quantity):
+            in_wlen = in_wlen.to(u.nm).value
+        if in_res is None:
+            in_res = np.mean((in_wlen[:-1]/np.diff(in_wlen)))
+        # delta lambda of resolution element is FWHM of the LSF's standard deviation:
+        sigma_LSF = np.sqrt(1./out_res**2-1./in_res**2)/(2.*np.sqrt(2.*np.log(2.)))
+        spacing = np.mean(2.*np.diff(in_wlen)/(in_wlen[1:]+in_wlen[:-1]))
+
+        # Calculate the sigma to be used in the gauss filter in pixels
+        sigma_LSF_gauss_filter = sigma_LSF/spacing
+        result = np.tile(np.nan, in_flux.shape)
+        nans = np.isnan(flux)
+
+        result[~nans] = gaussian_filter(in_flux[~nans], sigma = sigma_LSF_gauss_filter, mode = 'reflect')
+        return result
+    
