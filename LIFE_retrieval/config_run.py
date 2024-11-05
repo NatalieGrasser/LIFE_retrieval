@@ -32,7 +32,7 @@ bayes=True if len(sys.argv)>4 else False # True / False (do bayes evidence retri
 
 def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad'):
 
-    output=f'{obj}_N{Nlive}_e{evtol}' # output folder name
+    output=f'N{Nlive}_e{evtol}' # output folder name
     obj = Target(obj)
 
     constant_params={} # add if needed
@@ -67,7 +67,10 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad'):
             'log_C2H2':([-12,0],r'log C$_2$H$_2$'),
             'log_CH3Cl':([-12,0],r'log CH$_3$Cl'),
             'log_SO2':([-12,0],r'log SO$_2$'),
-            'log_OCS':([-12,0],r'log OCS')
+            'log_OCS':([-12,0],r'log OCS'),
+            'log_CS2':([-12,0],r'log CS$_2$'),
+            'log_C2H6':([-12,0],r'log C$_2$H$_6$'),
+            'log_DMS':([-12,0],r'log DMS')
             }
         
     cloud_props={'log_opa_base_gray': ([-10,3], r'log $\kappa_{\mathrm{cl},0}$'),  

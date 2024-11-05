@@ -13,6 +13,8 @@ import matplotlib.ticker as ticker
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning) 
 from pRT_model import pRT_spectrum
+import pandas as pd
+from petitRADTRANS import Radtrans
 
 def plot_spectrum(retrieval_object,fs=10,**kwargs):
 
@@ -188,7 +190,7 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
                                 'alpha': 0.5,
                                 'edgecolor': 'k',
                                 'linewidth': 1.0},
-                        fig=fig)
+                        fig=fig, quiet=True)
     
     # split title to avoid overlap with plots
     titles = [axi.title.get_text() for axi in fig.axes]
@@ -231,6 +233,7 @@ def make_all_plots(retrieval_object,only_params=None,split_corner=True):
     plot_spectrum(retrieval_object)
     plot_pt(retrieval_object)
     summary_plot(retrieval_object)
+    opacity_plot(retrieval_object)
     if split_corner: # split corner plot to avoid massive files
         cornerplot(retrieval_object,only_abundances=True)
         cornerplot(retrieval_object,not_abundances=True)
@@ -260,3 +263,56 @@ def summary_plot(retrieval_object,fs=14):
     fig.savefig(f'{retrieval_object.output_dir}/{retrieval_object.callback_label}summary.pdf',
                 bbox_inches="tight",dpi=200)
     plt.close()
+
+def opacity_plot(retrieval_object,only_params=None):
+    if only_params==None: # plot 6 most abundant species
+        only_params=[]
+        abunds=[]
+        species=retrieval_object.chem_species
+        for spec in species:
+            abunds.append(retrieval_object.params_dict[spec])
+        abunds, species = zip(*sorted(zip(abunds, species)))
+        only_params=species[-6:][::-1] # get largest 6
+    species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
+    pRT_names=[]
+    labels=[]
+    for par in only_params:
+        pRT_names.append(species_info.loc[par[4:],'pRT_name'])
+        labels.append(species_info.loc[par[4:],'mathtext_name'])
+
+    wlen_range=np.array([np.min(retrieval_object.data_wave),np.max(retrieval_object.data_wave)]) # in microns for pRT
+    atmosphere = Radtrans(line_species=pRT_names,
+                        rayleigh_species = ['H2', 'He'],
+                        continuum_opacities = ['H2-H2', 'H2-He'],
+                        wlen_bords_micron=wlen_range, 
+                        mode='c-k')
+    
+    T = np.array([300]).reshape(1)
+    wave_cm, opas = atmosphere.get_opa(T)
+    wave_um = wave_cm*1e4 # microns
+
+    fig,ax=plt.subplots(1,1,figsize=(6,3),dpi=200)
+    lines=[]
+    maxmin=[]
+    for i,m in enumerate(pRT_names):
+        abund=10**retrieval_object.params_dict[only_params[i]]
+        col=species_info.loc[f'{only_params[i][4:]}','color']
+        spec,=plt.plot(wave_um,opas[m]*abund,lw=0.5,c=col)
+        lines.append(Line2D([0],[0],color=spec.get_color(),
+                        linewidth=2,label=labels[i]))
+        maxmin.append([np.min(opas[m]*abund),np.max(opas[m]*abund)])
+        
+    #plt.plot(retrieval_object.data_wave,retrieval_object.data_flux*np.max(maxmin),lw=0.5,c='k')
+    plt.yscale('log')
+    plt.ylabel('Opacity [cm$^2$/g]')
+    plt.xlabel("Wavelength [$\mu$m]")
+    plt.xlim(np.min(wave_um),np.max(wave_um))
+    legend=plt.legend(handles=lines,ncol=3,loc='lower center')
+    #legend.get_frame().set_alpha(None)
+    #legend.get_frame().set_facecolor((0, 0, 0, 0))
+    #legend.get_frame().set_edgecolor((0, 0, 0, 0))
+    name = 'opacities' if retrieval_object.callback_label=='final_' else f'{retrieval_object.callback_label}opacities'
+    fig.savefig(f'{retrieval_object.output_dir}/{name}.pdf',
+                bbox_inches="tight",dpi=200)
+    plt.close()
+

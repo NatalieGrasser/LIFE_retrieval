@@ -107,7 +107,7 @@ class Retrieval:
         self.Cov(self.parameters.params)
         ln_L = self.LogLike(self.model_flux, self.Cov) # retrieve log-likelihood
 
-        if True:
+        if False:
             plt.plot(self.data_wave,self.data_flux)
             plt.plot(self.data_wave,self.model_flux,alpha=0.7)
 
@@ -185,9 +185,9 @@ class Retrieval:
         spectrum[:,1]=self.model_flux
 
         if self.callback_label=='final_': # only save if final
-            with open(f'{self.output_dir}/{self.callback_label}params_dict.pickle','wb') as file:
+            with open(f'{self.output_dir}/params_dict.pickle','wb') as file:
                 pickle.dump(self.params_dict,file)
-            np.savetxt(f'{self.output_dir}/{self.callback_label}spectrum.txt',spectrum,delimiter=' ',header='wavelength(nm) flux')
+            np.savetxt(f'{self.output_dir}/bestfit_spectrum.txt',spectrum,delimiter=' ',header='wavelength(nm) flux')
         
         return self.params_dict,self.model_flux
 
@@ -307,7 +307,7 @@ class Retrieval:
         molecules=[] # list of molecules to run evidence retrievals on
 
         # run main retrieval if hasn't been run yet, else skip to evidence retrivals
-        final_dict=pathlib.Path(f'{self.output_dir}/final_params_dict.pickle')
+        final_dict=pathlib.Path(f'{self.output_dir}/params_dict.pickle')
         if final_dict.exists()==False:
             self.PMN_run(N_live_points=self.N_live_points,evidence_tolerance=self.evidence_tolerance)
         else:
