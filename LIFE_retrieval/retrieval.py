@@ -20,9 +20,12 @@ from log_likelihood import *
 
 class Retrieval:
 
-    def __init__(self,target,parameters,output_name,PT_type='PTgrad'):
+    def __init__(self,target,parameters,output_name,N_live_points=400,
+                 evidence_tolerance=0.5,PT_type='PTgrad'):
         
         self.target=target
+        self.N_live_points=N_live_points
+        self.evidence_tolerance=evidence_tolerance
         self.data_wave,self.data_flux,self.data_err=target.load_spectrum()
         self.mask_isfinite=target.get_mask_isfinite() # mask nans
         self.parameters=parameters
@@ -300,9 +303,8 @@ class Retrieval:
         sigma = np.sqrt(2)*erfcinv(p)
         return ln_B*sign,sigma*sign
 
-    def run_retrieval(self,N_live_points=400,evidence_tolerance=0.5,bayes=False): 
-        self.N_live_points=N_live_points
-        self.evidence_tolerance=evidence_tolerance
+    def run_retrieval(self,bayes=False): 
+        
         retrieval_output_dir=self.output_dir # save end results here
         molecules=[] # list of molecules to run evidence retrievals on
 
