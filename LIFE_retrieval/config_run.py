@@ -48,11 +48,11 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad'):
         free_params.update(pt_params)
 
     if PT_type=='PTgrad':
-        pt_params={'dlnT_dlnP_0': ([0.,0.4], r'$\nabla T_0$'), # gradient at T0 
-                'dlnT_dlnP_1': ([0.,0.4], r'$\nabla T_1$'), 
-                'dlnT_dlnP_2': ([0.,0.4], r'$\nabla T_2$'), 
-                'dlnT_dlnP_3': ([0.,0.4], r'$\nabla T_3$'), 
-                'dlnT_dlnP_4': ([0.,0.4], r'$\nabla T_4$'), 
+        pt_params={'dlnT_dlnP_0': ([-0.4,0.4], r'$\nabla T_0$'), # gradient at T0 
+                'dlnT_dlnP_1': ([-0.4,0.4], r'$\nabla T_1$'), 
+                'dlnT_dlnP_2': ([-0.4,0.4], r'$\nabla T_2$'), 
+                'dlnT_dlnP_3': ([-0.4,0.4], r'$\nabla T_3$'), 
+                'dlnT_dlnP_4': ([-0.4,0.4], r'$\nabla T_4$'), 
                 'T0': ([100,1000], r'$T_0$')} # at bottom of atmosphere
         free_params.update(pt_params)
         
