@@ -240,9 +240,8 @@ class Retrieval:
             else:
                 figs.summary_plot(self)
 
-    def bayes_evidence(self,molecules):
+    def bayes_evidence(self,molecules,retrieval_output_dir):
 
-        bayes_dict={}
         self.output_dir=pathlib.Path(f'{self.output_dir}/evidence_retrievals') # store output in separate folder
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -253,8 +252,13 @@ class Retrieval:
 
             finish=pathlib.Path(f'{self.output_dir}/evidence_retrievals/final_wo{molecule}_posterior.npy')
             if finish.exists():
-                print(f'Evidence retrieval for {molecule} already done')
-                continue # check if already exists and continue if yes
+                print(f'\n ----------------- Evidence retrieval for {molecule} already done ----------------- \n')
+                setback_prior=False
+            else:
+                print(f'\n ----------------- Starting evidence retrieval for {molecule} ----------------- \n')
+                setback_prior=True
+                original_prior=self.parameters.param_priors[f'log_{molecule}']
+                self.parameters.param_priors[f'log_{molecule}']=[-15,-14] # exclude from retrieval
 
             original_prior=self.parameters.param_priors[f'log_{molecule}']
             self.parameters.param_priors[f'log_{molecule}']=[-15,-14] # exclude from retrieval
@@ -267,22 +271,20 @@ class Retrieval:
             ex_model=pRT_spectrum(self).make_spectrum()      
             lnL = self.LogLike(ex_model, self.Cov) # call function to generate chi2
             chi2_ex = self.LogLike.chi2_0_red # reduced chi^2
-
-            print(f'lnZ=',self.lnZ)
-            print(f'lnZ_{molecule}=',self.lnZ_ex)
             lnB,sigma=self.compare_evidence(self.lnZ, self.lnZ_ex)
-            print(f'lnBm_{molecule}=',lnB)
             print(f'sigma_{molecule}=',sigma)
-            print(f'chi2_{molecule}=',chi2_ex)
-            bayes_dict[f'lnBm_{molecule}']=lnB
-            bayes_dict[f'sigma_{molecule}']=sigma
-            bayes_dict[f'chi2_wo_{molecule}']=chi2_ex
-            print('bayes_dict=',bayes_dict)  
+            self.evidence_dict[f'lnBm_{molecule}']=lnB
+            self.evidence_dict[f'sigma_{molecule}']=sigma
+            self.evidence_dict[f'chi2_wo_{molecule}']=chi2_ex
+            print('bayes_dict=',self.evidence_dict)  
+            with open(f'{retrieval_output_dir}/evidence_dict.pickle','wb') as file: # save results at each step
+                pickle.dump(self.evidence_dict,file)
 
             # set back param priors for next retrieval
-            self.parameters.param_priors[f'log_{molecule}']=original_prior 
+            if setback_prior==True:
+                self.parameters.param_priors[f'log_{molecule}']=original_prior 
             
-        return bayes_dict
+        return self.evidence_dict
 
     def compare_evidence(self,ln_Z_A,ln_Z_B):
         '''
@@ -304,23 +306,38 @@ class Retrieval:
         return ln_B*sign,sigma*sign
 
     def run_retrieval(self,bayes=False): 
+
+        print(f'\n ------ {self.target.name} - Nlive: {self.N_live_points} - ev: {self.evidence_tolerance} ------- \n')
         
         retrieval_output_dir=self.output_dir # save end results here
-        molecules=[] # list of molecules to run evidence retrievals on
+        molecules=['DMS','C2H6'] # list of molecules to run evidence retrievals on
 
         # run main retrieval if hasn't been run yet, else skip to evidence retrivals
         final_dict=pathlib.Path(f'{self.output_dir}/params_dict.pickle')
         if final_dict.exists()==False:
+            print('\n ----------------- Starting main retrieval. ----------------- \n')
             self.PMN_run(N_live_points=self.N_live_points,evidence_tolerance=self.evidence_tolerance)
         else:
+            print('\n ----------------- Main retrieval exists. ----------------- \n')
             with open(final_dict,'rb') as file:
                 self.params_dict=pickle.load(file) 
         self.evaluate()
         if bayes==True:
-            bayes_dict=self.bayes_evidence(molecules)
-            print('bayes_dict=\n',bayes_dict)
+            evidence_dict=pathlib.Path(f'{retrieval_output_dir}/evidence_dict.pickle')
+            if evidence_dict.exists()==False: # to avoid overwriting sigmas from other evidence retrievals
+                print('\n ----------------- Creating evidence dict ----------------- \n')
+                self.evidence_dict={}
+            else:
+                print('\n ----------------- Continuing existing evidence dict ----------------- \n')
+                with open(evidence_dict,'rb') as file:
+                    self.evidence_dict=pickle.load(file)
+            self.evidence_dict=self.bayes_evidence(molecules,retrieval_output_dir)
             with open(f'{retrieval_output_dir}/evidence_dict.pickle','wb') as file: # save new results in separate dict
-                pickle.dump(bayes_dict,file)
+                pickle.dump(self.evidence_dict,file)
+
+        output_file=pathlib.Path('retrieval.out')
+        if output_file.exists():
+            os.system(f"mv {output_file} {retrieval_output_dir}")
 
         print('----------------- Done ----------------')
 

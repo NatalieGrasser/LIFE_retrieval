@@ -54,7 +54,8 @@ def plot_spectrum(retrieval_object,fs=10,**kwargs):
 
     plt.subplots_adjust(wspace=0, hspace=0)
     if 'ax' not in kwargs:
-        fig.savefig(f'{retrieval_object.output_dir}/{retrieval_object.callback_label}bestfit_spectrum.pdf',
+        name = 'bestfit_spectrum' if retrieval_object.callback_label=='final_' else f'{retrieval_object.callback_label}bestfit_spectrum'
+        fig.savefig(f'{retrieval_object.output_dir}/{name}.pdf',
                     bbox_inches='tight')
         plt.close()
 
@@ -132,7 +133,8 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
 
     if 'ax' not in kwargs: # save as separate plot
         fig.tight_layout()
-        fig.savefig(f'{retrieval_object.output_dir}/{retrieval_object.callback_label}PT_profile.pdf')
+        name ='PT_profile' if retrieval_object.callback_label=='final_' else f'{retrieval_object.callback_label}PT_profile'
+        fig.savefig(f'{retrieval_object.output_dir}/{name}.pdf')
         plt.close()
 
 def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label='',
@@ -222,7 +224,8 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
     plt.subplots_adjust(wspace=0,hspace=0)
 
     if getfig==False:
-        fig.savefig(f'{retrieval_object.output_dir}/{retrieval_object.callback_label}cornerplot{plot_label}.pdf',
+        name ='cornerplot' if retrieval_object.callback_label=='final_' else f'{retrieval_object.callback_label}cornerplot'
+        fig.savefig(f'{retrieval_object.output_dir}/{name}{plot_label}.pdf',
                     bbox_inches="tight",dpi=200)
         plt.close()
     else:
@@ -260,8 +263,8 @@ def summary_plot(retrieval_object,fs=14):
     l, b, w, h = [0.7,0.49,0.27,0.27] # left, bottom, width, height
     ax_PT = fig.add_axes([l,b,w,h])
     plot_pt(retrieval_object,ax=ax_PT,fs=fs)
-    fig.savefig(f'{retrieval_object.output_dir}/{retrieval_object.callback_label}summary.pdf',
-                bbox_inches="tight",dpi=200)
+    name = 'summary' if retrieval_object.callback_label=='final_' else f'{retrieval_object.callback_label}summary'
+    fig.savefig(f'{retrieval_object.output_dir}/{name}.pdf', bbox_inches="tight",dpi=200)
     plt.close()
 
 def opacity_plot(retrieval_object,only_params=None):
@@ -312,7 +315,6 @@ def opacity_plot(retrieval_object,only_params=None):
     #legend.get_frame().set_facecolor((0, 0, 0, 0))
     #legend.get_frame().set_edgecolor((0, 0, 0, 0))
     name = 'opacities' if retrieval_object.callback_label=='final_' else f'{retrieval_object.callback_label}opacities'
-    fig.savefig(f'{retrieval_object.output_dir}/{name}.pdf',
-                bbox_inches="tight",dpi=200)
+    fig.savefig(f'{retrieval_object.output_dir}/{name}.pdf', bbox_inches="tight",dpi=200)
     plt.close()
 
