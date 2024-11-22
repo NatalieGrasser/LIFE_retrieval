@@ -65,14 +65,14 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad'):
             'log_HCN':([-12,0],r'log HCN'),
             'log_H2S':([-12,0],r'log H$_2$S'),
             'log_C2H2':([-12,0],r'log C$_2$H$_2$'),
+            'log_C2H4':([-12,0],r'log C$_2$H$_4$'),
+            'log_C2H6':([-12,0],r'log C$_2$H$_6$'),
             'log_CH3Cl':([-12,0],r'log CH$_3$Cl'),
             'log_SO2':([-12,0],r'log SO$_2$'),
             'log_OCS':([-12,0],r'log OCS'),
             'log_CS2':([-12,0],r'log CS$_2$'),
-            'log_C2H6':([-12,0],r'log C$_2$H$_6$'),
             'log_DMS':([-12,0],r'log DMS')
             }
-        
     cloud_props={'log_opa_base_gray': ([-10,3], r'log $\kappa_{\mathrm{cl},0}$'),  
                 'log_P_base_gray': ([-6,3], r'log $P_{\mathrm{cl},0}$'), # pressure of gray cloud deck
                 'fsed_gray': ([0,20], r'$f_\mathrm{sed}$')} # sedimentation parameter for particles
