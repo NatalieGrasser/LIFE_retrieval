@@ -21,7 +21,7 @@ class pRT_spectrum:
         self.params=retrieval_object.parameters.params
         self.data_wave=retrieval_object.data_wave
         self.target=retrieval_object.target
-        self.species=retrieval_object.species
+        self.species_pRT=retrieval_object.species_pRT
         self.spectral_resolution=spectral_resolution
         self.atmosphere_object=retrieval_object.atmosphere_object
 
@@ -35,8 +35,13 @@ class pRT_spectrum:
         self.contribution=contribution
         self.cloud_mode=retrieval_object.cloud_mode
 
-        self.mass_fractions, self.CO, self.FeH = self.free_chemistry(self.species,self.params)
-        self.MMW = self.mass_fractions['MMW']
+        if retrieval_object.chem=='const':
+            self.mass_fractions, self.CO, self.FeH = self.free_chemistry(self.species_pRT,self.params)
+            self.MMW = self.mass_fractions['MMW']
+        elif retrieval_object.chem=='var':
+            self.mass_fractions, self.CO, self.FeH = self.var_chemistry(self.species_pRT,self.params)
+            self.MMW = self.mass_fractions['MMW']
+            self.VMRs = self.get_VMRs(self.mass_fractions)
 
     def read_species_info(self,species,info_key):
         species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
@@ -50,6 +55,88 @@ class pRT_spectrum:
             return species_info.loc[species,info_key]
         if info_key == 'label':
             return species_info.loc[species,'mathtext_name']
+        
+    def get_VMRs(self,mass_fractions):
+        species_info = pd.read_csv(os.path.join('species_info.csv'))
+        VMR_dict={}
+        MMW=self.MMW
+        for pRT_name in mass_fractions.keys():
+            if pRT_name!='MMW':
+                mass=species_info.loc[species_info["pRT_name"]==pRT_name]['mass'].values[0]
+                name=species_info.loc[species_info["pRT_name"]==pRT_name]['name'].values[0]
+                VMR_dict[name]=mass_fractions[pRT_name]*MMW/mass
+        return VMR_dict
+        
+    def var_chemistry(self,line_species,params):
+        species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
+
+        mass_fractions_list=[]
+        CO_list=[]
+        FeH_list=[]
+
+        for knot in range(3): # points where to retrieve abundances
+            VMR_He = 0.15
+            VMR_wo_H2 = 0 + VMR_He  # Total VMR without H2, starting with He
+            mass_fractions = {} # Create a dictionary for all used species
+            C, O, H = 0, 0, 0
+
+            for species_i in species_info.index:
+                line_species_i = self.read_species_info(species_i,'pRT_name')
+                mass_i = self.read_species_info(species_i, 'mass')
+                COH_i  = self.read_species_info(species_i, 'COH')
+
+                if species_i in ['H2', 'He']:
+                    continue
+                if line_species_i in line_species:
+                    VMR_i = 10**(params[f'log_{species_i}_{knot}'])#*np.ones(self.n_atm_layers) #  use constant, vertical profile
+
+                    # Convert VMR to mass fraction using molecular mass number
+                    mass_fractions[line_species_i] = mass_i * VMR_i
+                    VMR_wo_H2 += VMR_i
+
+                    # Record C, O, and H bearing species for C/O and metallicity
+                    C += COH_i[0] * VMR_i
+                    O += COH_i[1] * VMR_i
+                    H += COH_i[2] * VMR_i
+
+            # Add the H2 and He abundances
+            mass_fractions['He'] = self.read_species_info('He', 'mass')*VMR_He
+            mass_fractions['H2'] = self.read_species_info('H2', 'mass')*(1-VMR_wo_H2)
+            H += self.read_species_info('H2','H')*(1-VMR_wo_H2) # Add to the H-bearing species
+
+            MMW = 0 # Compute the mean molecular weight from all species
+            for mass_i in mass_fractions.values():
+                MMW += mass_i
+            #MMW *= np.ones(self.n_atm_layers)
+            
+            for line_species_i in mass_fractions.keys():
+                mass_fractions[line_species_i] /= MMW # Turn the molecular masses into mass fractions
+            mass_fractions['MMW'] = MMW # pRT requires MMW in mass fractions dictionary
+
+            self.VMR_wo_H2=VMR_wo_H2 # must be < 1
+            if self.VMR_wo_H2>1: # exit if invalid params, or there will be error message
+                return mass_fractions,1,1
+
+            CO = C/O
+            log_CH_solar = 8.46 - 12 # Asplund et al. (2021)
+            FeH = np.log10(C/H)-log_CH_solar
+            CO = np.nanmean(CO)
+            FeH = np.nanmean(FeH)
+            CO_list.append(CO)
+            FeH_list.append(FeH)
+            mass_fractions_list.append(mass_fractions)
+
+        mass_fractions_interp = {}
+        for line_species_i in mass_fractions.keys():
+            mass_fracs = [mass_fractions_list[0][line_species_i],mass_fractions_list[1][line_species_i],mass_fractions_list[2][line_species_i]]
+            log_P_knots= np.linspace(np.log10(np.min(self.pressure)),np.log10(np.max(self.pressure)),num=3)
+            # use linear interpolation to avoid going into negative values cubic spline did that)
+            log_mass_fracs=np.interp(np.log10(self.pressure), log_P_knots, np.log10(mass_fracs)) # interpolate for all layers
+            mass_fractions_interp[line_species_i] = 10**log_mass_fracs #np.interp(np.log10(self.pressure), log_P_knots, mass_fracs) # interpolate for all layers
+        CO = np.nanmean(CO_list)
+        FeH = np.nanmean(FeH_list)
+
+        return mass_fractions_interp, CO, FeH
     
     def free_chemistry(self,line_species,params):
         species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
@@ -148,7 +235,8 @@ class pRT_spectrum:
     def make_pt(self,**kwargs): 
 
         if self.PT_type=='PTknot': # retrieve temperature knots
-            self.T_knots = np.array([self.params['T4'],self.params['T3'],self.params['T2'],self.params['T1'],self.params['T0']])
+            #self.T_knots = np.array([self.params['T4'],self.params['T3'],self.params['T2'],self.params['T1'],self.params['T0']])
+            self.T_knots = np.array([self.params['T6'],self.params['T5'],self.params['T4'],self.params['T3'],self.params['T2'],self.params['T1'],self.params['T0']])
             self.log_P_knots= np.linspace(np.log10(np.min(self.pressure)),np.log10(np.max(self.pressure)),num=len(self.T_knots))
             sort = np.argsort(self.log_P_knots)
             self.temperature = CubicSpline(self.log_P_knots[sort],self.T_knots[sort])(np.log10(self.pressure))

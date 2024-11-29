@@ -30,13 +30,17 @@ Nlive=int(sys.argv[2]) # number of live points (integer)
 evtol=float(sys.argv[3]) # evidence tolerance (float)
 bayes=True if len(sys.argv)>4 else False # True / False (do bayes evidence retrievals)
 
-def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad'):
+def init_retrieval(obj,Nlive,evtol,PT_type='PTknot',chem='const'):
 
-    output=f'N{Nlive}_e{evtol}' # output folder name
+    output=f'{obj}_N{Nlive}_e{evtol}' # output folder name
     obj = Target(obj)
 
-    constant_params={} # add if needed
-    free_params = {'rv': ([0,20],r'$v_{\rm rad}$'),
+    constant_params={'rv':0,
+                     'log_opa_base_gray': -10,  
+                    'log_P_base_gray': 3, # pressure of gray cloud deck
+                    'fsed_gray': 20} # add if needed
+    
+    free_params = {#'rv': ([0,20],r'$v_{\rm rad}$'),
                 'log_g':([1,3],r'log $g$')}
     
     if PT_type=='PTknot':
@@ -44,7 +48,9 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad'):
                 'T1' : ([0,1000], r'$T_1$'),
                 'T2' : ([0,1000], r'$T_2$'),
                 'T3' : ([0,1000], r'$T_3$'),
-                'T4' : ([0,1000], r'$T_4$'),} # top of atmosphere (cooler)
+                'T4' : ([0,1000], r'$T_4$'),
+                'T5' : ([0,1000], r'$T_5$'),
+                'T6' : ([0,1000], r'$T_6$')} # top of atmosphere (cooler)
         free_params.update(pt_params)
 
     if PT_type=='PTgrad':
@@ -58,34 +64,43 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad'):
         
     # free chemistry, define VMRs
     chemistry={'log_H2O':([-12,0],r'log H$_2$O'),
-            'log_CO':([-12,0],r'log CO'),
-            'log_CO2':([-12,0],r'log CO$_2$'),
-            'log_CH4':([-12,0],r'log CH$_4$'),
-            'log_NH3':([-12,0],r'log NH$_3$'),
-            'log_HCN':([-12,0],r'log HCN'),
-            'log_H2S':([-12,0],r'log H$_2$S'),
-            'log_C2H2':([-12,0],r'log C$_2$H$_2$'),
-            'log_C2H4':([-12,0],r'log C$_2$H$_4$'),
-            'log_C2H6':([-12,0],r'log C$_2$H$_6$'),
-            'log_CH3Cl':([-12,0],r'log CH$_3$Cl'),
-            'log_SO2':([-12,0],r'log SO$_2$'),
-            'log_OCS':([-12,0],r'log OCS'),
-            'log_CS2':([-12,0],r'log CS$_2$'),
-            'log_DMS':([-12,0],r'log DMS')
-            }
-    cloud_props={'log_opa_base_gray': ([-10,3], r'log $\kappa_{\mathrm{cl},0}$'),  
-                'log_P_base_gray': ([-6,3], r'log $P_{\mathrm{cl},0}$'), # pressure of gray cloud deck
-                'fsed_gray': ([0,20], r'$f_\mathrm{sed}$')} # sedimentation parameter for particles
+                'log_CO':([-12,0],r'log CO'),
+                'log_CO2':([-12,0],r'log CO$_2$'),
+                'log_CH4':([-12,0],r'log CH$_4$'),
+                'log_NH3':([-12,0],r'log NH$_3$'),
+                'log_HCN':([-12,0],r'log HCN'),
+                'log_H2S':([-12,0],r'log H$_2$S'),
+                'log_C2H2':([-12,0],r'log C$_2$H$_2$'),
+                'log_C2H4':([-12,0],r'log C$_2$H$_4$'),
+                'log_C2H6':([-12,0],r'log C$_2$H$_6$'),
+                'log_CH3Cl':([-12,0],r'log CH$_3$Cl'),
+                'log_SO2':([-12,0],r'log SO$_2$'),
+                'log_OCS':([-12,0],r'log OCS'),
+                'log_CS2':([-12,0],r'log CS$_2$'),
+                'log_DMS':([-12,0],r'log DMS')
+                }
+       
+    if chem=='var':
+        varchem={}
+        for key in chemistry.keys():
+            varchem[f'{key}_0']=chemistry[key]
+            varchem[f'{key}_1']=chemistry[key]
+            varchem[f'{key}_2']=chemistry[key]
+        chemistry=varchem
+
+    #cloud_props={'log_opa_base_gray': ([-10,3], r'log $\kappa_{\mathrm{cl},0}$'),  
+                #'log_P_base_gray': ([-6,3], r'log $P_{\mathrm{cl},0}$'), # pressure of gray cloud deck
+                #'fsed_gray': ([0,20], r'$f_\mathrm{sed}$')} # sedimentation parameter for particles
     
-    free_params.update(cloud_props)
+    #free_params.update(cloud_props)
     free_params.update(chemistry)
     parameters = Parameters(free_params, constant_params)
     cube = np.random.rand(parameters.n_params)
     parameters(cube)
     retrieval=Retrieval(target=obj,parameters=parameters,output_name=output,
-                        N_live_points=Nlive,evidence_tolerance=evtol,PT_type=PT_type)
+                        N_live_points=Nlive,evidence_tolerance=evtol,PT_type=PT_type,chem=chem)
 
     return retrieval
 
-retrieval=init_retrieval(target_object,Nlive,evtol)
+retrieval=init_retrieval(target_object,Nlive,evtol,PT_type='PTknot',chem='var')
 retrieval.run_retrieval(bayes=bayes)

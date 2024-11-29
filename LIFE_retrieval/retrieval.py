@@ -21,7 +21,7 @@ from log_likelihood import *
 class Retrieval:
 
     def __init__(self,target,parameters,output_name,N_live_points=400,
-                 evidence_tolerance=0.5,PT_type='PTgrad'):
+                 evidence_tolerance=0.5,PT_type='PTgrad',chem='const'):
         
         self.target=target
         self.N_live_points=N_live_points
@@ -29,7 +29,8 @@ class Retrieval:
         self.data_wave,self.data_flux,self.data_err=target.load_spectrum()
         self.mask_isfinite=target.get_mask_isfinite() # mask nans
         self.parameters=parameters
-        self.species=self.get_species(param_dict=self.parameters.params)
+        self.chem=chem
+        self.species_pRT=self.get_species(param_dict=self.parameters.params)
 
         self.n_pixels=len(self.data_wave)
         self.n_params = len(parameters.free_params)
@@ -57,21 +58,21 @@ class Retrieval:
         self.bestfit_params=None 
         self.posterior = None
         self.params_dict=None
-        self.calc_errors=False
-
         self.color1=target.color1
 
     def get_species(self,param_dict): # get pRT species name from parameters dict
         species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
-        self.chem_species=[]
+        self.species_names=[]
         for par in param_dict:
             if 'log_' in par: # get all species in params dict, they are in log, ignore other log values
                 if par in ['log_g','log_P_base_gray','log_opa_base_gray']: # skip
-                    pass
-                else:
-                    self.chem_species.append(par)
+                    continue
+                if self.chem=='const':
+                    self.species_names.append(par)
+                elif self.chem=='var' and '_1' in par:
+                    self.species_names.append(par[:-2])
         species=[]
-        for chemspec in self.chem_species:
+        for chemspec in self.species_names:
             species.append(species_info.loc[chemspec[4:],'pRT_name'])
         return species
 
@@ -88,7 +89,7 @@ class Retrieval:
             wlmax=np.max(self.data_wave)+wl_pad
             wlen_range=np.array([wlmin,wlmax]) # already in microns for pRT
 
-            atmosphere_object = Radtrans(line_species=self.species,
+            atmosphere_object = Radtrans(line_species=self.species_pRT,
                                 rayleigh_species = ['H2', 'He'],
                                 continuum_opacities = ['H2-H2', 'H2-He'],
                                 wlen_bords_micron=wlen_range, 
@@ -101,11 +102,6 @@ class Retrieval:
 
     def PMN_lnL(self,cube=None,ndim=None,nparams=None):
         self.model_object=pRT_spectrum(self)
-        
-        # pass exit through a self.thing attibute and not kwarg, or pmn will be confused
-        if self.calc_errors==True: # only for calc errors on Fe/H, C/O, temperatures
-            return
-
         self.model_flux=self.model_object.make_spectrum()
         self.Cov(self.parameters.params)
         ln_L = self.LogLike(self.model_flux, self.Cov) # retrieve log-likelihood
@@ -118,7 +114,7 @@ class Retrieval:
 
     def PMN_run(self,N_live_points=400,evidence_tolerance=0.5,resume=False):
         pymultinest.run(LogLikelihood=self.PMN_lnL,Prior=self.parameters,n_dims=self.parameters.n_params, 
-                        outputfiles_basename=f'{self.output_dir}/{self.prefix}', 
+                        outputfiles_basename=f'./{self.target.name}/{self.output_name}/{self.prefix}', 
                         verbose=True,const_efficiency_mode=True, sampling_efficiency = 0.5,
                         n_live_points=N_live_points,resume=resume,
                         evidence_tolerance=evidence_tolerance, # default is 0.5, high number -> stops earlier
@@ -130,6 +126,8 @@ class Retrieval:
         self.posterior = posterior[:,:-2] # remove last 2 columns
         self.params_dict,self.model_flux=self.get_params_and_spectrum()
         figs.summary_plot(self)
+        if self.chem=='var':
+            figs.VMR_plot(self)
      
     def PMN_analyse(self):
         analyzer = pymultinest.Analyzer(n_params=self.parameters.n_params, 
@@ -158,39 +156,64 @@ class Retrieval:
         return medians,minus_err,plus_err
 
     def get_params_and_spectrum(self): 
+
+        final_dict=pathlib.Path(f'{self.output_dir}/params_dict.pickle')
+        if final_dict.exists():
+            with open(final_dict,'rb') as file:
+                self.params_dict=pickle.load(file)
+
+            for key in self.parameters.param_keys:
+                self.parameters.params[key]=self.params_dict[key] # set parameters to retrieved values
+
+            # create final spectrum
+            self.model_object=pRT_spectrum(self,contribution=True)
+            self.model_flux0=self.model_object.make_spectrum()
+            self.model_flux=np.zeros_like(self.model_flux0)
+            self.summed_contr=self.model_object.contr_em
+            phi_ij=self.params_dict['phi_ij']
+            for order in range(self.n_orders):
+                for det in range(self.n_dets):
+                    self.model_flux[order,det]=phi_ij[order,det]*self.model_flux0[order,det] # scale model accordingly
+
+            # get errors and save them in final params dict
+            self.get_errors()
+
+        else:
         
-        # make dict of constant params + evaluated params + their errors
-        self.params_dict=self.parameters.constant_params.copy() # initialize dict with constant params
-        medians,minus_err,plus_err=self.get_quantiles(self.posterior)
+            # make dict of constant params + evaluated params + their errors
+            self.params_dict=self.parameters.constant_params.copy() # initialize dict with constant params
+            medians,minus_err,plus_err=self.get_quantiles(self.posterior)
 
-        for i,key in enumerate(self.parameters.param_keys):
-            self.params_dict[key]=medians[i] # add median of evaluated params (more robust)
-            self.params_dict[f'{key}_err']=(minus_err[i],plus_err[i]) # add errors of evaluated params
-            self.params_dict[f'{key}_bf']=self.bestfit_params[i] # bestfit params with highest lnL (can differ from median, not as robust)
+            for i,key in enumerate(self.parameters.param_keys):
+                self.params_dict[key]=medians[i] # add median of evaluated params (more robust)
+                #self.params_dict[f'{key}_bf']=self.bestfit_params[i] # bestfit params with highest lnL (can differ from median, not as robust)
 
-        # create model spectrum
-        self.model_object=pRT_spectrum(self)
-        self.model_flux=self.model_object.make_spectrum()
-        self.get_errors() # for temperature, C/O and [C/H]
+            for i,key in enumerate(self.parameters.param_keys): # avoid messing up order of free params
+                self.params_dict[f'{key}_err']=(minus_err[i],plus_err[i]) # add errors of evaluated params
 
-        # get scaling parameters phi and s2 of bestfit model through likelihood
-        self.log_likelihood = self.LogLike(self.model_flux, self.Cov)
-        self.params_dict['phi']=self.LogLike.phi
-        self.params_dict['s2']=self.LogLike.s2
-        if self.callback_label=='final_':
-            self.params_dict['chi2']=self.LogLike.chi2_0_red # save reduced chi^2 of fiducial model
-            self.params_dict['lnZ']=self.lnZ # save lnZ of fiducial model
+            # create model spectrum
+            self.model_object=pRT_spectrum(self)
+            self.model_flux=self.model_object.make_spectrum()
+            self.get_errors() # for temperature, C/O and [C/H]
 
-        phi=self.params_dict['phi']
-        self.model_flux=phi*self.model_flux # scale model accordingly
-        spectrum=np.full(shape=(self.n_pixels,2),fill_value=np.nan)
-        spectrum[:,0]=self.data_wave
-        spectrum[:,1]=self.model_flux
+            # get scaling parameters phi and s2 of bestfit model through likelihood
+            self.log_likelihood = self.LogLike(self.model_flux, self.Cov)
+            self.params_dict['phi']=self.LogLike.phi
+            self.params_dict['s2']=self.LogLike.s2
+            if self.callback_label=='final_':
+                self.params_dict['chi2']=self.LogLike.chi2_0_red # save reduced chi^2 of fiducial model
+                self.params_dict['lnZ']=self.lnZ # save lnZ of fiducial model
 
-        if self.callback_label=='final_': # only save if final
-            with open(f'{self.output_dir}/params_dict.pickle','wb') as file:
-                pickle.dump(self.params_dict,file)
-            np.savetxt(f'{self.output_dir}/bestfit_spectrum.txt',spectrum,delimiter=' ',header='wavelength(nm) flux')
+            phi=self.params_dict['phi']
+            self.model_flux=phi*self.model_flux # scale model accordingly
+            spectrum=np.full(shape=(self.n_pixels,2),fill_value=np.nan)
+            spectrum[:,0]=self.data_wave
+            spectrum[:,1]=self.model_flux
+
+            if self.callback_label=='final_': # only save if final
+                with open(f'{self.output_dir}/params_dict.pickle','wb') as file:
+                    pickle.dump(self.params_dict,file)
+                np.savetxt(f'{self.output_dir}/bestfit_spectrum.txt',spectrum,delimiter=' ',header='wavelength(nm) flux')
         
         return self.params_dict,self.model_flux
 
@@ -202,33 +225,60 @@ class Retrieval:
             bounds_array.append(bounds)
         bounds_array=np.array(bounds_array)
 
-        self.calc_errors=True
-        CO_distribution=np.full(self.posterior.shape[0],fill_value=0.0)
-        CH_distribution=np.full(self.posterior.shape[0],fill_value=0.0)
-        temperature_distribution=[] # for each of the n_atm_layers
-        x=0
-        for j,sample in enumerate(self.posterior):
-            # sample value is final/real value, need it to be between 0 and 1 depending on prior, same as cube
-            cube=(sample-bounds_array[:,0])/(bounds_array[:,1]-bounds_array[:,0])
-            self.parameters(cube)
-            self.PMN_lnL()
-            CO_distribution[j]=self.model_object.CO
-            CH_distribution[j]=self.model_object.FeH
-            temperature_distribution.append(self.model_object.temperature)
-            x+=1
-            if getpass.getuser()=="natalie" and x>20: # when testing from my laptop, or it takes too long (22min)
-                break
-        self.CO_CH_dist=np.vstack([CO_distribution,CH_distribution]).T
-        self.temp_dist=np.array(temperature_distribution) # shape (n_samples, n_atm_layers)
-        self.calc_errors=False # set back to False when finished
+        ratios=pathlib.Path(f'{self.output_dir}/ratios_posterior.npy')
+        temp_dist=pathlib.Path(f'{self.output_dir}/temperature_dist.npy')
+        VMR_dict=pathlib.Path(f'{self.output_dir}/VMR_dict.pickle')
 
-        median,minus_err,plus_err=self.get_quantiles(CO_distribution,flat=True)
-        self.params_dict['C/O']=median
-        self.params_dict['C/O_err']=(minus_err,plus_err)
+        if ratios.exists() and temp_dist.exists() and self.chem=='const':
+            self.ratios_posterior=np.load(ratios)
+            self.temp_dist=np.load(temp_dist)
 
-        median,minus_err,plus_err=self.get_quantiles(CH_distribution,flat=True)
-        self.params_dict['C/H']=median
-        self.params_dict['C/H_err']=(minus_err,plus_err)
+        elif ratios.exists() and temp_dist.exists() and VMR_dict.exists() and self.chem=='var':
+            self.ratios_posterior=np.load(ratios)
+            self.temp_dist=np.load(temp_dist)
+            with open(VMR_dict,'rb') as file:
+                self.VMR_dict=pickle.load(file)
+
+        else:
+            CO_distribution=np.full(self.posterior.shape[0],fill_value=0.0)
+            CH_distribution=np.full(self.posterior.shape[0],fill_value=0.0)
+            temperature_distribution=[] # for each of the n_atm_layers
+            VMRs=[]
+            for j,sample in enumerate(self.posterior):
+                # sample value is final/real value, need it to be between 0 and 1 depending on prior, same as cube
+                cube=(sample-bounds_array[:,0])/(bounds_array[:,1]-bounds_array[:,0])
+                self.parameters(cube)
+                model_object=pRT_spectrum(self)
+                CO_distribution[j]=model_object.CO
+                CH_distribution[j]=model_object.FeH
+                temperature_distribution.append(model_object.temperature)
+                if self.chem=='var':
+                    VMRs.append(model_object.VMRs)
+            self.CO_CH_dist=np.vstack([CO_distribution,CH_distribution]).T
+            self.temp_dist=np.array(temperature_distribution) # shape (n_samples, n_atm_layers)
+
+            median,minus_err,plus_err=self.get_quantiles(CO_distribution,flat=True)
+            self.params_dict['C/O']=median
+            self.params_dict['C/O_err']=(minus_err,plus_err)
+
+            median,minus_err,plus_err=self.get_quantiles(CH_distribution,flat=True)
+            self.params_dict['C/H']=median
+            self.params_dict['C/H_err']=(minus_err,plus_err)
+
+            if self.chem=='var':
+                self.VMR_dict={}
+                for molec in VMRs[0].keys():
+                    vmr_list=[]
+                    for i in range(len(self.posterior)):
+                        vmr_list.append(VMRs[i][molec])
+                    self.VMR_dict[molec]=vmr_list # reformat to make it easier to work with
+
+            if self.callback_label=='final_' and getpass.getuser() == "grasser": # when running from LEM
+                np.save(f'{self.output_dir}/ratios_posterior.npy',self.ratios_posterior)
+                np.save(f'{self.output_dir}/temperature_dist.npy',self.temp_dist)
+                if self.chem=='var':
+                    with open(f'{self.output_dir}/VMR_dict.pickle','wb') as file:
+                        pickle.dump(self.VMR_dict,file)
 
     def evaluate(self,callback_label='final_',makefigs=True):
         self.callback_label=callback_label

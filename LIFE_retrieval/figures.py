@@ -15,6 +15,8 @@ warnings.filterwarnings("ignore", category=UserWarning)
 from pRT_model import pRT_spectrum
 import pandas as pd
 from petitRADTRANS import Radtrans
+import math
+from matplotlib import pyplot as plt, ticker as mticker
 
 def plot_spectrum(retrieval_object,fs=10,**kwargs):
 
@@ -36,7 +38,7 @@ def plot_spectrum(retrieval_object,fs=10,**kwargs):
     
     ax[1].plot(wave,flux-flux_m,lw=1.2,c=retrieval_object.color1,label='residuals')
     lines = [Line2D([0], [0], color='k',linewidth=2,label='Data'),
-            mpatches.Patch(color='k',alpha=0.1,label='1$\sigma$'),
+            #mpatches.Patch(color='k',alpha=0.1,label='1$\sigma$'),
             Line2D([0], [0], color=retrieval_object.color1, linewidth=2,label='Bestfit')]
     ax[0].legend(handles=lines,fontsize=fs) # to only have it once
     ax[1].plot([np.min(wave),np.max(wave)],[0,0],lw=1.2,alpha=1,c='k')
@@ -73,19 +75,27 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
             ax.plot(retr_obj.model_object.temperature,
                 retr_obj.model_object.pressure,color=retr_obj.color1,lw=2) 
             medians=[]
-            errs=[]
+            #errs=[]
             log_P_knots=retr_obj.model_object.log_P_knots
             for key in ['T4','T3','T2','T1','T0']: # order T4,T3,T2,T1,T0 like log_P_knots
                 medians.append(retr_obj.params_dict[key])
-                errs.append(retr_obj.params_dict[f'{key}_err'])
-            errs=np.array(errs)
-            for x in [1,2,3]: # plot 1-3 sigma errors
-                lower = CubicSpline(log_P_knots,medians+x*errs[:,0])(np.log10(retr_obj.pressure))
-                upper = CubicSpline(log_P_knots,medians+x*errs[:,1])(np.log10(retr_obj.pressure))
-                ax.fill_betweenx(retr_obj.pressure,lower,upper,color=retr_obj.color1,alpha=0.15)
-            ax.scatter(medians,10**retr_obj.model_object.log_P_knots,color=retr_obj.color1)
-            xmin=np.min(lower)-100
-            xmax=np.max(upper)+100
+                #errs.append(retr_obj.params_dict[f'{key}_err'])
+            #errs=np.array(errs)
+            #for x in [1,2,3]: # plot 1-3 sigma errors
+                #lower = CubicSpline(log_P_knots,medians+x*errs[:,0])(np.log10(retr_obj.pressure))
+                #upper = CubicSpline(log_P_knots,medians+x*errs[:,1])(np.log10(retr_obj.pressure))
+                #ax.fill_betweenx(retr_obj.pressure,lower,upper,color=retr_obj.color1,alpha=0.15)
+            quantiles = np.array([np.percentile(retr_obj.temp_dist[:,i], [0.2,2.3,15.9,50.0,84.1,97.7,99.8], axis=-1) for i in range(retr_obj.temp_dist.shape[1])])
+            ax.fill_betweenx(retr_obj.pressure,quantiles[:,0],quantiles[:,-1],color=retr_obj.color1,alpha=0.15)
+            ax.fill_betweenx(retr_obj.pressure,quantiles[:,1],quantiles[:,-2],color=retr_obj.color1,alpha=0.15)
+            ax.fill_betweenx(retr_obj.pressure,quantiles[:,2],quantiles[:,-3],color=retr_obj.color1,alpha=0.15)
+            ax.scatter(medians,10**log_P_knots,color=retr_obj.color1)
+            temperature=retr_obj.model_object.make_pt(dlnT_dlnP_knots=dlnT_dlnP_knots,T_base=T0)
+            ax.plot(temperature,retr_obj.model_object.pressure,color=retr_obj.color1,lw=2) 
+            #xmin=np.min(lower)-100
+            #xmax=np.max(upper)+100
+            xmin=np.min((quantiles[:,0],quantiles[:,-1]))-100
+            xmax=np.max((quantiles[:,0],quantiles[:,-1]))+100
             lines.append(Line2D([0],[0],marker='o',color=retrieval_object.color1,markerfacecolor=retrieval_object.color1,
                     linewidth=2,linestyle='-',label=olabel))
 
@@ -98,7 +108,7 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
                 derr.append(retr_obj.params_dict[f'{key}_err']) # -/+ errors
             derr=np.array(derr) # gradient errors
             T0=retr_obj.params_dict['T0']
-            err=retr_obj.params_dict['T0_err']
+            #err=retr_obj.params_dict['T0_err']
             temperature=retr_obj.model_object.make_pt(dlnT_dlnP_knots=dlnT_dlnP_knots,T_base=T0)
             ax.plot(temperature,retr_obj.model_object.pressure,color=retr_obj.color1,lw=2) 
             # get 1-2-3 sigma of temp_dist, has shape (samples, n_atm_layers)
@@ -113,14 +123,15 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
         return xmin,xmax
 
     xmin,xmax=plot_temperature(retrieval_object,ax,olabel='Retrieval')
-    model_object=pRT_spectrum(retrieval_object,contribution=True)
-    model_object.make_spectrum()
-    summed_contr=model_object.contr_em
+    #model_object=pRT_spectrum(retrieval_object,contribution=True)
+    #model_object.make_spectrum()
+    #summed_contr=model_object.contr_em
+    summed_contr=retrieval_object.summed_contr
     contribution_plot=summed_contr/np.max(summed_contr)*(xmax-xmin)+xmin
     ax.plot(contribution_plot,retrieval_object.model_object.pressure,linestyle='dashed',
             lw=1.5,alpha=0.8,color=retrieval_object.color1)
     lines.append(Line2D([0], [0], color=retrieval_object.color1, alpha=0.8,
-                        linewidth=1.5, linestyle='--',label='Em. Contr.'))
+                        linewidth=1.5, linestyle='--',label='Emission'))
         
     ax.set(xlabel='Temperature [K]', ylabel='Pressure [bar]',yscale='log',
         ylim=(np.nanmax(retrieval_object.model_object.pressure),
@@ -148,9 +159,11 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
     if only_abundances==True: # plot only abundances
         plot_label='_abundances'
         indices=[]
-        for key in retrieval_object.chem_species:
-            idx=list(retrieval_object.parameters.params).index(key)
-            indices.append(idx)
+        for key in retrieval_object.species_names:
+            if retrieval_object.chem=='const':
+                indices.append(list(retrieval_object.parameters.params).index(key))
+            elif retrieval_object.chem=='var':
+                indices.append(list(retrieval_object.parameters.params).index(f'{key}_1'))
         plot_posterior=np.array([retrieval_object.posterior[:,i] for i in indices]).T
         labels=np.array([labels[i] for i in indices])
         medians=np.array([medians[i] for i in indices])
@@ -167,9 +180,14 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
     if not_abundances==True: # plot all except abundances
         plot_label='_rest'
         abund_indices=[]
-        for key in retrieval_object.chem_species:
-            idx=list(retrieval_object.parameters.params).index(key)
-            abund_indices.append(idx)
+        for key in retrieval_object.species_names:
+            if retrieval_object.chem=='const':
+                idx=list(retrieval_object.parameters.params).index(key)
+                abund_indices.append(idx)
+            elif retrieval_object.chem=='var':
+                for i in range(3):
+                    idx=list(retrieval_object.parameters.params).index(f'{key}_{i}')
+                    abund_indices.append(idx)
         set_diff = np.setdiff1d(indices,abund_indices)
         plot_posterior=np.array([retrieval_object.posterior[:,i] for i in set_diff]).T
         labels=np.array([labels[i] for i in set_diff])
@@ -237,6 +255,8 @@ def make_all_plots(retrieval_object,only_params=None,split_corner=True):
     plot_pt(retrieval_object)
     summary_plot(retrieval_object)
     opacity_plot(retrieval_object)
+    if retrieval_object.chem=='var':
+        VMR_plot(retrieval_object)
     if split_corner: # split corner plot to avoid massive files
         cornerplot(retrieval_object,only_abundances=True)
         cornerplot(retrieval_object,not_abundances=True)
@@ -248,9 +268,12 @@ def summary_plot(retrieval_object,fs=14):
     # plot 7 most abundant species
     only_params=[]
     abunds=[]
-    species=retrieval_object.chem_species
+    species=retrieval_object.species_names
     for spec in species:
-        abunds.append(retrieval_object.params_dict[spec])
+        if retrieval_object.chem=='const':
+            abunds.append(retrieval_object.params_dict[spec])
+        elif retrieval_object.chem=='var':
+            abunds.append(retrieval_object.params_dict[f'{spec}_1'])
     abunds, species = zip(*sorted(zip(abunds, species)))
     only_params=species[-7:][::-1] # get largest 7
     #only_params=['log_H2O','log_CO','log_CO2','log_CH4','log_NH3','log_H2S','log_HCN']
@@ -271,9 +294,12 @@ def opacity_plot(retrieval_object,only_params=None):
     if only_params==None: # plot 6 most abundant species
         only_params=[]
         abunds=[]
-        species=retrieval_object.chem_species
+        species=retrieval_object.species_names
         for spec in species:
-            abunds.append(retrieval_object.params_dict[spec])
+            if retrieval_object.chem=='const':
+                abunds.append(retrieval_object.params_dict[spec])
+            elif retrieval_object.chem=='var':
+                abunds.append(retrieval_object.params_dict[f'{spec}_1'])
         abunds, species = zip(*sorted(zip(abunds, species)))
         only_params=species[-6:][::-1] # get largest 6
     species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
@@ -316,5 +342,84 @@ def opacity_plot(retrieval_object,only_params=None):
     #legend.get_frame().set_edgecolor((0, 0, 0, 0))
     name = 'opacities' if retrieval_object.callback_label=='final_' else f'{retrieval_object.callback_label}opacities'
     fig.savefig(f'{retrieval_object.output_dir}/{name}.pdf', bbox_inches="tight",dpi=200)
+    plt.close()
+
+def VMR_plot(retrieval_object,molecules=None,fs=10):
+
+    if molecules==None:
+        # plot 8 most abundant species
+        abunds=[]
+        species=retrieval_object.species_names
+        for spec in species:
+            if retrieval_object.chem=='const':
+                abunds.append(retrieval_object.params_dict[spec])
+            elif retrieval_object.chem=='var':
+                abunds.append(retrieval_object.params_dict[f'{spec}_1']) # for varying, take middle VMR
+        abunds, species = zip(*sorted(zip(abunds, species)))
+        molecules=species[-8:][::-1] # get largest 8
+
+    prefix='' if retrieval_object.callback_label=='final_' else retrieval_object.callback_label
+    output_dir=retrieval_object.output_dir
+    fig,ax=plt.subplots(1,1,figsize=(5,3.5),dpi=200)
+    species_info = pd.read_csv(os.path.join('species_info.csv'))
+    legend_labels=0
+    xmin,xmax=1e-10,1e-2
+    chemleg=[] # legend for chemistry
+    pressure=retrieval_object.model_object.pressure
+
+    def plot_VMRs(retr_obj,ax,ax2):
+        
+        if retr_obj.chem=='const':    
+            chemleg.append(Line2D([0], [0], marker='o',color='k',markerfacecolor='k',linewidth=2,alpha=0.7))
+        elif retr_obj.chemistry=='var':
+            linestyle='solid'
+            chemleg.append(Line2D([0], [0], color='k',linestyle=linestyle,linewidth=2,alpha=0.3))
+
+        if retr_obj.chem=='const':
+            contribution_plot=retr_obj.summed_contr/np.max(retr_obj.summed_contr)*(xmax-xmin)+xmin
+            ax2.plot(contribution_plot,retr_obj.model_object.pressure[::-1],
+                    lw=1,alpha=0.3,color=retr_obj.color1,linestyle='dashdot')
+            ax2.set_xlim(np.min(contribution_plot),np.max(contribution_plot))
+            ax2.set_ylim(np.min(pressure),np.max(pressure))
+            ax2.set_yscale('log')
+
+        for species in molecules:
+            color=species_info.loc[species_info["name"]==species]['color'].values[0]
+            label=species_info.loc[species_info["name"]==species]['mathtext_name'].values[0]
+            if retr_obj.chem=='const':
+                label=label if legend_labels==0 else '_nolegend_' 
+                VMR=10**retr_obj.params_dict[f'log_{species}']
+                idx=list(retr_obj.parameters.params).index(f'log_{species}')
+                sm3,sm2,sm1,median,sp1,sp2,sp3 = 10**np.array(np.percentile(retr_obj.posterior[:,idx],[0.2,2.3,15.9,50.0,84.1,97.7,99.8], axis=-1))
+                ax.plot(np.ones_like(pressure)*VMR,pressure,label=label,linestyle=linestyle,c=color)
+                ax.fill_betweenx(pressure,sm2,sp2,color=color,alpha=0.1) # 95% confidence interval
+
+            elif retr_obj.chem=='var':
+                label=label if legend_labels==0 else '_nolegend_'
+                sm3,sm2,sm1,median,sp1,sp2,sp3=np.percentile(retr_obj.VMR_dict[species], [0.2,2.3,15.9,50.0,84.1,97.7,99.8], axis=0)
+                ax.plot(median,pressure,label=label,alpha=1,linestyle=linestyle,c=color)
+                ax.fill_betweenx(pressure,sm2,sp2,color=color,alpha=0.1) # 95% confidence interval
+    
+    ax2 = ax.inset_axes([0,0,1,1]) # [x0, y0, width, height] , for emission contribution
+    plot_VMRs(retrieval_object,ax=ax,ax2=ax2)
+
+    leg=ax.legend(fontsize=fs*0.8,ncol=int(math.ceil(len(molecules)/2)),loc='lower left')
+    for lh in leg.legend_handles:
+        lh.set_alpha(1)
+    for line in leg.get_lines():
+        line.set_linestyle('-')
+    ax.add_artist(leg)
+  
+    ax2.axis('off')
+    ax2.set_facecolor('none')
+    ax.set(xlabel='VMR', ylabel='Pressure [bar]',yscale='log',xscale='log',
+        ylim=(np.max(pressure),np.min(pressure)),xlim=(xmin,xmax))   
+    ax.tick_params(labelsize=fs)
+    ax.xaxis.set_major_locator(mticker.LogLocator(numticks=999))
+    ax.xaxis.set_minor_locator(mticker.LogLocator(numticks=999, subs="auto"))
+    ax.set_xlabel('VMR', fontsize=fs)
+    ax.set_ylabel('Pressure [bar]', fontsize=fs)
+    fig.tight_layout()
+    fig.savefig(f'{output_dir}/{prefix}VMR_plot.pdf')
     plt.close()
 
