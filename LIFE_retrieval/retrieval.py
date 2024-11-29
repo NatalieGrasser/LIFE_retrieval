@@ -112,7 +112,7 @@ class Retrieval:
 
         return ln_L
 
-    def PMN_run(self,N_live_points=400,evidence_tolerance=0.5,resume=False):
+    def PMN_run(self,N_live_points=400,evidence_tolerance=0.5,resume=True):
         pymultinest.run(LogLikelihood=self.PMN_lnL,Prior=self.parameters,n_dims=self.parameters.n_params, 
                         outputfiles_basename=f'./{self.target.name}/{self.output_name}/{self.prefix}', 
                         verbose=True,const_efficiency_mode=True, sampling_efficiency = 0.5,
