@@ -228,7 +228,7 @@ class pRT_spectrum:
             print('Invalid flux:',atmosphere.flux)
             flux= np.ones_like(wl)
         else:
-            print(flux)
+            print(atmosphere.flux)
             flux = atmosphere.flux/np.nanmean(atmosphere.flux)
         
         flux = self.convolve_to_resolution(wl, flux, self.spectral_resolution)
