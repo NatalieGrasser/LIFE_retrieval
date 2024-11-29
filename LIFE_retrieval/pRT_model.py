@@ -115,7 +115,11 @@ class pRT_spectrum:
 
             self.VMR_wo_H2=VMR_wo_H2 # must be < 1
             if self.VMR_wo_H2>1: # exit if invalid params, or there will be error message
-                return mass_fractions,1,1
+                exit_mf={}
+                for key in self.mass_fractions.keys():
+                    exit_mf[key]=np.ones(self.n_atm_layers)*1e-12
+                    #exit_mf[key]=model_object.mass_fractions[key]*np.ones(50)
+                return exit_mf,1,1
 
             CO = C/O
             log_CH_solar = 8.46 - 12 # Asplund et al. (2021)
