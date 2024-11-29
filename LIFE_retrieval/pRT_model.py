@@ -226,7 +226,7 @@ class pRT_spectrum:
         wl = const.c.to(u.km/u.s).value/atmosphere.freq/1e-9 # mircons
         try:
             flux = atmosphere.flux/np.nanmean(atmosphere.flux)
-        except:
+        except RuntimeWarning:
             print('Invalid flux:',atmosphere.flux)
             flux= np.ones_like(wl)
         flux = self.convolve_to_resolution(wl, flux, self.spectral_resolution)
