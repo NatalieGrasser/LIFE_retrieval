@@ -224,11 +224,12 @@ class pRT_spectrum:
                         give_absorption_opacity=self.give_absorption_opacity)
 
         wl = const.c.to(u.km/u.s).value/atmosphere.freq/1e-9 # mircons
-        try:
-            flux = atmosphere.flux/np.nanmean(atmosphere.flux)
-        except RuntimeWarning:
+        if np.nanmean(atmosphere.flux)==0:
             print('Invalid flux:',atmosphere.flux)
             flux= np.ones_like(wl)
+        else:
+            flux = atmosphere.flux/np.nanmean(atmosphere.flux)
+        
         flux = self.convolve_to_resolution(wl, flux, self.spectral_resolution)
 
         # Interpolate/rebin onto the data's wavelength grid
