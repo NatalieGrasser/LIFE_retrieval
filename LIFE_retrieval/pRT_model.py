@@ -6,6 +6,7 @@ from astropy import units as u
 import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter
+import matplotlib.pyplot as plt
 import getpass
 if getpass.getuser() == "grasser": # when runnig from LEM
     import matplotlib
@@ -73,9 +74,10 @@ class pRT_spectrum:
         mass_fractions_list=[]
         CO_list=[]
         FeH_list=[]
+        VMR_He = 0.15
 
         for knot in range(3): # points where to retrieve abundances
-            VMR_He = 0.15
+
             VMR_wo_H2 = 0 + VMR_He  # Total VMR without H2, starting with He
             mass_fractions = {} # Create a dictionary for all used species
             C, O, H = 0, 0, 0
@@ -88,7 +90,7 @@ class pRT_spectrum:
                 if species_i in ['H2', 'He']:
                     continue
                 if line_species_i in line_species:
-                    VMR_i = 10**(params[f'log_{species_i}_{knot}'])#*np.ones(self.n_atm_layers) #  use constant, vertical profile
+                    VMR_i = 10**(params[f'log_{species_i}_{knot}'])
 
                     # Convert VMR to mass fraction using molecular mass number
                     mass_fractions[line_species_i] = mass_i * VMR_i
@@ -101,31 +103,20 @@ class pRT_spectrum:
 
             # Add the H2 and He abundances
             mass_fractions['He'] = self.read_species_info('He', 'mass')*VMR_He
-            mass_fractions['H2'] = self.read_species_info('H2', 'mass')*(1-VMR_wo_H2)
             H += self.read_species_info('H2','H')*(1-VMR_wo_H2) # Add to the H-bearing species
+            self.VMR_wo_H2=VMR_wo_H2
 
             MMW = 0 # Compute the mean molecular weight from all species
             for mass_i in mass_fractions.values():
                 MMW += mass_i
-            #MMW *= np.ones(self.n_atm_layers)
             
             for line_species_i in mass_fractions.keys():
                 mass_fractions[line_species_i] /= MMW # Turn the molecular masses into mass fractions
             mass_fractions['MMW'] = MMW # pRT requires MMW in mass fractions dictionary
 
-            self.VMR_wo_H2=VMR_wo_H2 # must be < 1
-            if self.VMR_wo_H2>1: # exit if invalid params, or there will be error message
-                exit_mf={}
-                for key in self.mass_fractions.keys():
-                    exit_mf[key]=np.ones(self.n_atm_layers)*1e-12
-                    #exit_mf[key]=model_object.mass_fractions[key]*np.ones(50)
-                return exit_mf,1,1
-
             CO = C/O
             log_CH_solar = 8.46 - 12 # Asplund et al. (2021)
             FeH = np.log10(C/H)-log_CH_solar
-            CO = np.nanmean(CO)
-            FeH = np.nanmean(FeH)
             CO_list.append(CO)
             FeH_list.append(FeH)
             mass_fractions_list.append(mass_fractions)
@@ -137,9 +128,28 @@ class pRT_spectrum:
             # use linear interpolation to avoid going into negative values cubic spline did that)
             log_mass_fracs=np.interp(np.log10(self.pressure), log_P_knots, np.log10(mass_fracs)) # interpolate for all layers
             mass_fractions_interp[line_species_i] = 10**log_mass_fracs #np.interp(np.log10(self.pressure), log_P_knots, mass_fracs) # interpolate for all layers
+
+        mf_layers = np.empty(self.n_atm_layers) # mass fraction of layers
+        for l in range(self.n_atm_layers):
+            mf=0
+            for key in mass_fractions_interp.keys():
+                if key!='MMW':
+                    mf+=mass_fractions_interp[key][l]
+            mf_layers[l]=mf
+        mf_H2=np.empty(self.n_atm_layers)
+        for l in range(self.n_atm_layers):
+            mf_H2[l]=1-mf_layers[l]
+        mass_fractions_interp['H2']=mf_H2
+        if any(l>1 for l in mf_layers): # exit if invalid params, or there will be error message
+            print('Invalid mass fractions')
+            self.VMR_wo_H2=1.1
+            exit_mf={}
+            for key in self.mass_fractions.keys():
+                exit_mf[key]=np.ones(self.n_atm_layers)*1e-12
+                return exit_mf,1,1
+            
         CO = np.nanmean(CO_list)
         FeH = np.nanmean(FeH_list)
-
         return mass_fractions_interp, CO, FeH
     
     def free_chemistry(self,line_species,params):
@@ -224,11 +234,16 @@ class pRT_spectrum:
                         give_absorption_opacity=self.give_absorption_opacity)
 
         wl = const.c.to(u.km/u.s).value/atmosphere.freq/1e-9 # mircons
-        if np.nanmean(atmosphere.flux)==0:
-            print('Invalid flux:',atmosphere.flux)
+        if np.nanmean(atmosphere.flux) in [0, np.nan, np.inf]:
+            print('Invalid flux',np.nanmean(atmosphere.flux))
+            print(self.mass_fractions)
+            plt.plot(self.temperature,self.pressure)
+            plt.yscale('log')
+            plt.show()
+            plt.plot(wl,atmosphere.flux)
+            plt.show()
             flux= np.ones_like(wl)
         else:
-            print(atmosphere.flux)
             flux = atmosphere.flux/np.nanmean(atmosphere.flux)
         
         flux = self.convolve_to_resolution(wl, flux, self.spectral_resolution)
