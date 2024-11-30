@@ -67,17 +67,17 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PTknot',chem='const'):
                 'log_CO':([-12,-1],r'log CO'),
                 'log_CO2':([-12,-1],r'log CO$_2$'),
                 'log_CH4':([-12,-1],r'log CH$_4$'),
-                'log_NH3':([-12,-1],r'log NH$_3$'),
-                'log_HCN':([-12,-1],r'log HCN'),
-                'log_H2S':([-12,-1],r'log H$_2$S'),
-                'log_C2H2':([-12,-1],r'log C$_2$H$_2$'),
-                'log_C2H4':([-12,-1],r'log C$_2$H$_4$'),
-                'log_C2H6':([-12,-1],r'log C$_2$H$_6$'),
-                'log_CH3Cl':([-12,-1],r'log CH$_3$Cl'),
-                'log_SO2':([-12,-1],r'log SO$_2$'),
-                'log_OCS':([-12,-1],r'log OCS'),
-                'log_CS2':([-12,-1],r'log CS$_2$'),
-                'log_DMS':([-12,-1],r'log DMS')}
+                'log_NH3':([-12,-3],r'log NH$_3$'),
+                'log_HCN':([-12,-3],r'log HCN'),
+                'log_H2S':([-12,-3],r'log H$_2$S'),
+                'log_C2H2':([-12,-3],r'log C$_2$H$_2$'),
+                'log_C2H4':([-12,-3],r'log C$_2$H$_4$'),
+                'log_C2H6':([-12,-3],r'log C$_2$H$_6$'),
+                'log_CH3Cl':([-12,-3],r'log CH$_3$Cl'),
+                'log_SO2':([-12,-3],r'log SO$_2$'),
+                'log_OCS':([-12,-3],r'log OCS'),
+                'log_CS2':([-12,-3],r'log CS$_2$'),
+                'log_DMS':([-12,-3],r'log DMS')}
        
     if chem=='var':
         varchem={}
