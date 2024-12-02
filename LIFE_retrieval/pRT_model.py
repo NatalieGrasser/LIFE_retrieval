@@ -7,6 +7,7 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.ndimage import gaussian_filter
 import matplotlib.pyplot as plt
+import pickle
 import getpass
 if getpass.getuser() == "grasser": # when runnig from LEM
     import matplotlib
@@ -19,6 +20,7 @@ class pRT_spectrum:
                  spectral_resolution=250,
                  contribution=False):
         
+        self.output_dir= retrieval_object.output_dir
         self.params=retrieval_object.parameters.params
         self.data_wave=retrieval_object.data_wave
         self.target=retrieval_object.target
@@ -286,14 +288,9 @@ class pRT_spectrum:
 
         wl = const.c.to(u.km/u.s).value/atmosphere.freq/1e-9 # mircons
         if np.nanmean(atmosphere.flux) in [0, np.nan, np.inf]:
-            print('Invalid flux',np.nanmean(atmosphere.flux))
-            #print(self.mass_fractions)
-            print(self.vmr_layers)
-            #plt.plot(self.temperature,self.pressure)
-            #plt.yscale('log')
-            #plt.show()
-            #plt.plot(wl,atmosphere.flux)
-            #plt.show()
+            print('Invalid flux',np.nanmean(atmosphere.flux)) # cause: probably messed up PT profile
+            #with open(f'{self.output_dir}/failed_pRT_obj.pickle','wb') as file: # save new results in separate dict
+                #pickle.dump(self,file)
             flux= np.ones_like(wl)
         else:
             flux = atmosphere.flux/np.nanmean(atmosphere.flux)

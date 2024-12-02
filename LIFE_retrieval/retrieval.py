@@ -39,7 +39,7 @@ class Retrieval:
         self.output_dir = pathlib.Path(f'{self.cwd}/{self.target.name}/{self.output_name}')
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-        self.cloud_mode='gray'
+        self.cloud_mode='None' # change later
         self.PT_type=PT_type
         self.n_atm_layers=50
         self.pressure = np.logspace(-6,2,self.n_atm_layers)
@@ -118,7 +118,7 @@ class Retrieval:
                         verbose=True,const_efficiency_mode=True, sampling_efficiency = 0.5,
                         n_live_points=N_live_points,resume=resume,
                         evidence_tolerance=evidence_tolerance, # default is 0.5, high number -> stops earlier
-                        dump_callback=self.PMN_callback,n_iter_before_update=100)
+                        dump_callback=self.PMN_callback,n_iter_before_update=1)
 
     def PMN_callback(self,n_samples,n_live,n_params,live_points,posterior, 
                     stats,max_ln_L,ln_Z,ln_Z_err,nullcontext):
