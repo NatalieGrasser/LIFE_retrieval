@@ -266,7 +266,6 @@ def make_all_plots(retrieval_object,only_params=None,split_corner=True):
 def summary_plot(retrieval_object,fs=14):
 
     # plot 7 most abundant species
-    only_params=[]
     abunds=[]
     species=retrieval_object.species_names
     for spec in species:
@@ -276,6 +275,11 @@ def summary_plot(retrieval_object,fs=14):
             abunds.append(retrieval_object.params_dict[f'{spec}_1'])
     abunds, species = zip(*sorted(zip(abunds, species)))
     only_params=species[-7:][::-1] # get largest 7
+    if retrieval_object.chem=='var':
+        new_only_params=[]
+        for spec in only_params:
+            new_only_params.append(f'{spec}_1')
+        only_params=new_only_params
     #only_params=['log_H2O','log_CO','log_CO2','log_CH4','log_NH3','log_H2S','log_HCN']
     fig, ax = cornerplot(retrieval_object,getfig=True,only_params=only_params,figsize=(17,17),fs=fs)
     l, b, w, h = [0.4,0.84,0.57,0.15] # left, bottom, width, height
