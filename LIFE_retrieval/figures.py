@@ -77,7 +77,7 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
             medians=[]
             #errs=[]
             log_P_knots=retr_obj.model_object.log_P_knots
-            for key in ['T4','T3','T2','T1','T0']: # order T4,T3,T2,T1,T0 like log_P_knots
+            for key in ['T6','T5','T4','T3','T2','T1','T0']: # order T4,T3,T2,T1,T0 like log_P_knots
                 medians.append(retr_obj.params_dict[key])
                 #errs.append(retr_obj.params_dict[f'{key}_err'])
             #errs=np.array(errs)
