@@ -192,8 +192,9 @@ class Retrieval:
                 self.params_dict[f'{key}_err']=(minus_err[i],plus_err[i]) # add errors of evaluated params
 
             # create model spectrum
-            self.model_object=pRT_spectrum(self)
+            self.model_object=pRT_spectrum(self,contribution=True)
             self.model_flux=self.model_object.make_spectrum()
+            self.summed_contr=self.model_object.contr_em
             self.get_errors() # for temperature, C/O and [C/H]
 
             # get scaling parameters phi and s2 of bestfit model through likelihood
