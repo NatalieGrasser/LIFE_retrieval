@@ -72,8 +72,6 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
     # plot PT-profile + errors on retrieved temperatures
     def plot_temperature(retr_obj,ax,olabel): 
         if retr_obj.PT_type=='PTknot':
-            ax.plot(retr_obj.model_object.temperature,
-                retr_obj.model_object.pressure,color=retr_obj.color1,lw=2) 
             medians=[]
             #errs=[]
             log_P_knots=retr_obj.model_object.log_P_knots
@@ -90,7 +88,7 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
             ax.fill_betweenx(retr_obj.pressure,quantiles[:,1],quantiles[:,-2],color=retr_obj.color1,alpha=0.15)
             ax.fill_betweenx(retr_obj.pressure,quantiles[:,2],quantiles[:,-3],color=retr_obj.color1,alpha=0.15)
             ax.scatter(medians,10**log_P_knots,color=retr_obj.color1)
-            temperature=retr_obj.model_object.make_pt()
+            temperature=CubicSpline(log_P_knots,medians)(np.log10(retr_obj.pressure))
             ax.plot(temperature,retr_obj.model_object.pressure,color=retr_obj.color1,lw=2) 
             #xmin=np.min(lower)-100
             #xmax=np.max(upper)+100
