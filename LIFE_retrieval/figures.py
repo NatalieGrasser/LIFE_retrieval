@@ -375,7 +375,7 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
         
         if retr_obj.chem=='const':    
             chemleg.append(Line2D([0], [0], marker='o',color='k',markerfacecolor='k',linewidth=2,alpha=0.7))
-        elif retr_obj.chemistry=='var':
+        elif retr_obj.chem=='var':
             linestyle='solid'
             chemleg.append(Line2D([0], [0], color='k',linestyle=linestyle,linewidth=2,alpha=0.3))
 
