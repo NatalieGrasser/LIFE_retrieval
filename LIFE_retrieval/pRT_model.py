@@ -313,7 +313,11 @@ class pRT_spectrum:
             self.T_knots = np.array([self.params['T6'],self.params['T5'],self.params['T4'],self.params['T3'],self.params['T2'],self.params['T1'],self.params['T0']])
             self.log_P_knots= np.linspace(np.log10(np.min(self.pressure)),np.log10(np.max(self.pressure)),num=len(self.T_knots))
             sort = np.argsort(self.log_P_knots)
-            self.temperature = CubicSpline(self.log_P_knots[sort],self.T_knots[sort])(np.log10(self.pressure))
+            try:
+                self.temperature = CubicSpline(self.log_P_knots[sort],self.T_knots[sort])(np.log10(self.pressure))
+            except ValueError as e:
+                print(e)
+                print(self.T_knots[sort])
         
         if self.PT_type=='PTgrad':
             self.log_P_knots = np.linspace(np.log10(np.min(self.pressure)),

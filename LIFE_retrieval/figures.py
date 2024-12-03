@@ -386,8 +386,10 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
             ax2.set_yscale('log')
 
         for species in molecules:
+            species=species[4:] # remove log
             color=species_info.loc[species_info["name"]==species]['color'].values[0]
             label=species_info.loc[species_info["name"]==species]['mathtext_name'].values[0]
+            prt_species=species_info.loc[species_info["name"]==species]['pRT_name'].values[0]
             if retr_obj.chem=='const':
                 label=label if legend_labels==0 else '_nolegend_' 
                 VMR=10**retr_obj.params_dict[f'log_{species}']
@@ -398,7 +400,7 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
 
             elif retr_obj.chem=='var':
                 label=label if legend_labels==0 else '_nolegend_'
-                sm3,sm2,sm1,median,sp1,sp2,sp3=np.percentile(retr_obj.VMR_dict[species], [0.2,2.3,15.9,50.0,84.1,97.7,99.8], axis=0)
+                sm3,sm2,sm1,median,sp1,sp2,sp3=np.percentile(retr_obj.VMR_dict[f'{prt_species}'], [0.2,2.3,15.9,50.0,84.1,97.7,99.8], axis=0)
                 ax.plot(median,pressure,label=label,alpha=1,linestyle=linestyle,c=color)
                 ax.fill_betweenx(pressure,sm2,sp2,color=color,alpha=0.1) # 95% confidence interval
     
