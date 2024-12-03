@@ -30,7 +30,7 @@ Nlive=int(sys.argv[2]) # number of live points (integer)
 evtol=float(sys.argv[3]) # evidence tolerance (float)
 bayes=True if len(sys.argv)>4 else False # True / False (do bayes evidence retrievals)
 
-def init_retrieval(obj,Nlive,evtol,PT_type='PTknot',chem='const'):
+def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad',chem='const'):
 
     output=f'N{Nlive}_e{evtol}' # output folder name
     obj = Target(obj)
@@ -101,5 +101,5 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PTknot',chem='const'):
 
     return retrieval
 
-retrieval=init_retrieval(target_object,Nlive,evtol,PT_type='PTknot',chem='var')
+retrieval=init_retrieval(target_object,Nlive,evtol,PT_type='PTgrad',chem='var')
 retrieval.run_retrieval(bayes=bayes)
