@@ -17,7 +17,7 @@ class pRT_spectrum:
 
     def __init__(self,
                  retrieval_object,
-                 spectral_resolution=250,
+                 spectral_resolution=1000,
                  contribution=False):
         
         self.output_dir= retrieval_object.output_dir
@@ -287,7 +287,7 @@ class pRT_spectrum:
                         give_absorption_opacity=self.give_absorption_opacity)
 
         wl = const.c.to(u.km/u.s).value/atmosphere.freq/1e-9 # mircons
-        if np.nanmean(atmosphere.flux) in [0, np.nan, np.inf]:
+        if np.nanmean(atmosphere.flux) in [0, np.nan, np.inf] or len(atmosphere.flux)==0:
             print('Invalid flux',np.nanmean(atmosphere.flux)) # cause: probably messed up PT profile
             #with open(f'{self.output_dir}/failed_pRT_obj.pickle','wb') as file: # save new results in separate dict
                 #pickle.dump(self,file)
@@ -295,7 +295,7 @@ class pRT_spectrum:
         else:
             flux = atmosphere.flux/np.nanmean(atmosphere.flux)
         
-        flux = self.convolve_to_resolution(wl, flux, self.spectral_resolution)
+        #flux = self.convolve_to_resolution(wl, flux, self.spectral_resolution)
 
         # Interpolate/rebin onto the data's wavelength grid
         flux = np.interp(self.data_wave, wl, flux)
@@ -361,6 +361,7 @@ class pRT_spectrum:
             in_wlen = in_wlen.to(u.nm).value
         if in_res is None:
             in_res = np.mean((in_wlen[:-1]/np.diff(in_wlen)))
+        print(in_res,out_res)
         # delta lambda of resolution element is FWHM of the LSF's standard deviation:
         sigma_LSF = np.sqrt(1./out_res**2-1./in_res**2)/(2.*np.sqrt(2.*np.log(2.)))
         spacing = np.mean(2.*np.diff(in_wlen)/(in_wlen[1:]+in_wlen[:-1]))
