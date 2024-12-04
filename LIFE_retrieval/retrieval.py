@@ -226,16 +226,16 @@ class Retrieval:
             bounds_array.append(bounds)
         bounds_array=np.array(bounds_array)
 
-        ratios=pathlib.Path(f'{self.output_dir}/ratios_posterior.npy')
+        ratios=pathlib.Path(f'{self.output_dir}/CO_CH_dist.npy')
         temp_dist=pathlib.Path(f'{self.output_dir}/temperature_dist.npy')
         VMR_dict=pathlib.Path(f'{self.output_dir}/VMR_dict.pickle')
 
         if ratios.exists() and temp_dist.exists() and self.chem=='const':
-            self.ratios_posterior=np.load(ratios)
+            self.CO_CH_dist=np.load(ratios)
             self.temp_dist=np.load(temp_dist)
 
         elif ratios.exists() and temp_dist.exists() and VMR_dict.exists() and self.chem=='var':
-            self.ratios_posterior=np.load(ratios)
+            self.CO_CH_dist=np.load(ratios)
             self.temp_dist=np.load(temp_dist)
             with open(VMR_dict,'rb') as file:
                 self.VMR_dict=pickle.load(file)
@@ -275,7 +275,7 @@ class Retrieval:
                     self.VMR_dict[molec]=vmr_list # reformat to make it easier to work with
 
             if self.callback_label=='final_' and getpass.getuser() == "grasser": # when running from LEM
-                np.save(f'{self.output_dir}/ratios_posterior.npy',self.ratios_posterior)
+                np.save(f'{self.output_dir}/CO_CH_dist.npy',self.CO_CH_dist)
                 np.save(f'{self.output_dir}/temperature_dist.npy',self.temp_dist)
                 if self.chem=='var':
                     with open(f'{self.output_dir}/VMR_dict.pickle','wb') as file:
