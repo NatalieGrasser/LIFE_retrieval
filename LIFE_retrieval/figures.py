@@ -37,11 +37,11 @@ def plot_spectrum(retrieval_object,fs=10,**kwargs):
     ax[0].plot(wave,flux_m,lw=1.2,alpha=0.8,c=retrieval_object.color1,label='model')
     
     ax[1].plot(wave,flux-flux_m,lw=1.2,c=retrieval_object.color1,label='residuals')
-    lines = [Line2D([0], [0], color='k',linewidth=2,label='Data'),
+    lines = [Line2D([0], [0], color='k',linewidth=1,label='Data'),
             #mpatches.Patch(color='k',alpha=0.1,label='1$\sigma$'),
             Line2D([0], [0], color=retrieval_object.color1, linewidth=2,label='Bestfit')]
     ax[0].legend(handles=lines,fontsize=fs) # to only have it once
-    ax[1].plot([np.min(wave),np.max(wave)],[0,0],lw=1.2,alpha=1,c='k')
+    ax[1].plot([np.min(wave),np.max(wave)],[0,0],lw=1,alpha=1,c='k')
         
     ax[0].set_ylabel('Normalized Flux',fontsize=fs)
     ax[1].set_ylabel('Residuals',fontsize=fs)
@@ -157,11 +157,9 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
     if only_abundances==True: # plot only abundances
         plot_label='_abundances'
         indices=[]
+        suffix='' if retrieval_object.chem=='const' else '_1'
         for key in retrieval_object.species_names:
-            if retrieval_object.chem=='const':
-                indices.append(list(retrieval_object.parameters.params).index(key))
-            elif retrieval_object.chem=='var':
-                indices.append(list(retrieval_object.parameters.params).index(f'{key}_1'))
+            indices.append(list(retrieval_object.parameters.free_params).index(f'{key}{suffix}'))
         plot_posterior=np.array([retrieval_object.posterior[:,i] for i in indices]).T
         labels=np.array([labels[i] for i in indices])
         medians=np.array([medians[i] for i in indices])
@@ -169,7 +167,7 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
     if only_params is not None: # keys of specified parameters to plot
         indices=[]
         for key in only_params:
-            idx=list(retrieval_object.parameters.params).index(key)
+            idx=list(retrieval_object.parameters.free_params).index(key)
             indices.append(idx)
         plot_posterior=np.array([retrieval_object.posterior[:,i] for i in indices]).T
         labels=np.array([labels[i] for i in indices])
@@ -180,11 +178,11 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
         abund_indices=[]
         for key in retrieval_object.species_names:
             if retrieval_object.chem=='const':
-                idx=list(retrieval_object.parameters.params).index(key)
+                idx=list(retrieval_object.parameters.free_params).index(key)
                 abund_indices.append(idx)
             elif retrieval_object.chem=='var':
                 for i in range(3):
-                    idx=list(retrieval_object.parameters.params).index(f'{key}_{i}')
+                    idx=list(retrieval_object.parameters.free_params).index(f'{key}_{i}')
                     abund_indices.append(idx)
         set_diff = np.setdiff1d(indices,abund_indices)
         plot_posterior=np.array([retrieval_object.posterior[:,i] for i in set_diff]).T
@@ -266,11 +264,9 @@ def summary_plot(retrieval_object,fs=14):
     # plot 7 most abundant species
     abunds=[]
     species=retrieval_object.species_names
+    suffix='' if retrieval_object.chem=='const' else '_1'
     for spec in species:
-        if retrieval_object.chem=='const':
-            abunds.append(retrieval_object.params_dict[spec])
-        elif retrieval_object.chem=='var':
-            abunds.append(retrieval_object.params_dict[f'{spec}_1'])
+        abunds.append(retrieval_object.params_dict[f'{spec}{suffix}'])
     abunds, species = zip(*sorted(zip(abunds, species)))
     only_params=species[-7:][::-1] # get largest 7
     if retrieval_object.chem=='var':
@@ -297,11 +293,9 @@ def opacity_plot(retrieval_object,only_params=None):
         only_params=[]
         abunds=[]
         species=retrieval_object.species_names
+        suffix='' if retrieval_object.chem=='const' else '_1'
         for spec in species:
-            if retrieval_object.chem=='const':
-                abunds.append(retrieval_object.params_dict[spec])
-            elif retrieval_object.chem=='var':
-                abunds.append(retrieval_object.params_dict[f'{spec}_1'])
+            abunds.append(retrieval_object.params_dict[f'{spec}{suffix}'])
         abunds, species = zip(*sorted(zip(abunds, species)))
         only_params=species[-6:][::-1] # get largest 6
     species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
@@ -326,7 +320,7 @@ def opacity_plot(retrieval_object,only_params=None):
     lines=[]
     maxmin=[]
     for i,m in enumerate(pRT_names):
-        abund=10**retrieval_object.params_dict[only_params[i]]
+        abund=10**retrieval_object.params_dict[f'{only_params[i]}{suffix}']
         col=species_info.loc[f'{only_params[i][4:]}','color']
         spec,=plt.plot(wave_um,opas[m]*abund,lw=0.5,c=col)
         lines.append(Line2D([0],[0],color=spec.get_color(),
@@ -352,11 +346,9 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
         # plot 8 most abundant species
         abunds=[]
         species=retrieval_object.species_names
+        suffix='' if retrieval_object.chem=='const' else '_1'
         for spec in species:
-            if retrieval_object.chem=='const':
-                abunds.append(retrieval_object.params_dict[spec])
-            elif retrieval_object.chem=='var':
-                abunds.append(retrieval_object.params_dict[f'{spec}_1']) # for varying, take middle VMR
+            abunds.append(retrieval_object.params_dict[f'{spec}{suffix}']) # for varying, take middle VMR
         abunds, species = zip(*sorted(zip(abunds, species)))
         molecules=species[-8:][::-1] # get largest 8
 

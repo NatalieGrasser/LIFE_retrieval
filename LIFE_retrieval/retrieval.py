@@ -170,10 +170,8 @@ class Retrieval:
             self.model_flux0=self.model_object.make_spectrum()
             self.model_flux=np.zeros_like(self.model_flux0)
             self.summed_contr=self.model_object.contr_em
-            phi_ij=self.params_dict['phi_ij']
-            for order in range(self.n_orders):
-                for det in range(self.n_dets):
-                    self.model_flux[order,det]=phi_ij[order,det]*self.model_flux0[order,det] # scale model accordingly
+            phi=self.params_dict['phi']
+            self.model_flux=phi*self.model_flux0 # scale model accordingly
 
             # get errors and save them in final params dict
             self.get_errors()
