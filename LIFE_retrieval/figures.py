@@ -158,8 +158,13 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
         plot_label='_abundances'
         indices=[]
         suffix='_1' if retrieval_object.chem=='var' else ''
-        for key in retrieval_object.species_names:
-            indices.append(list(retrieval_object.parameters.free_params).index(f'{key}{suffix}'))
+        if retrieval_object.chem in ['var','const']:
+            for key in retrieval_object.species_names:
+                indices.append(list(retrieval_object.parameters.free_params).index(f'{key}{suffix}'))
+        elif retrieval_object.chem=='equ':
+            chem_params=['C/O','Fe/H','log_DMS','log_C2H6','log_CH3Cl']
+            for key in chem_params:
+                indices.append(list(retrieval_object.parameters.free_params).index(f'{key}'))
         plot_posterior=np.array([retrieval_object.posterior[:,i] for i in indices]).T
         labels=np.array([labels[i] for i in indices])
         medians=np.array([medians[i] for i in indices])
@@ -176,14 +181,19 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
     if not_abundances==True: # plot all except abundances
         plot_label='_rest'
         abund_indices=[]
-        for key in retrieval_object.species_names:
-            if retrieval_object.chem=='const':
+        if retrieval_object.chem in ['var','const']:
+            for key in retrieval_object.species_names:
+                if retrieval_object.chem=='const':
+                    idx=list(retrieval_object.parameters.free_params).index(key)
+                    abund_indices.append(idx)
+                elif retrieval_object.chem=='var':
+                    for i in range(3):
+                        idx=list(retrieval_object.parameters.free_params).index(f'{key}_{i}')
+                        abund_indices.append(idx)
+        elif retrieval_object.chem=='equ':
+            for key in chem_params:
                 idx=list(retrieval_object.parameters.free_params).index(key)
                 abund_indices.append(idx)
-            elif retrieval_object.chem=='var':
-                for i in range(3):
-                    idx=list(retrieval_object.parameters.free_params).index(f'{key}_{i}')
-                    abund_indices.append(idx)
         set_diff = np.setdiff1d(indices,abund_indices)
         plot_posterior=np.array([retrieval_object.posterior[:,i] for i in set_diff]).T
         labels=np.array([labels[i] for i in set_diff])
@@ -250,14 +260,16 @@ def make_all_plots(retrieval_object,only_params=None,split_corner=True):
     plot_spectrum(retrieval_object)
     plot_pt(retrieval_object)
     summary_plot(retrieval_object)
-    opacity_plot(retrieval_object)
-    if retrieval_object.chem=='var':
+    if retrieval_object.chem in ['var','const']:
+        CO_metal_cornerplot(retrieval_object)
+    if retrieval_object.chem in ['var','equ']:
         VMR_plot(retrieval_object)
     if split_corner: # split corner plot to avoid massive files
         cornerplot(retrieval_object,only_abundances=True)
         cornerplot(retrieval_object,not_abundances=True)
     else: # make cornerplot with all parameters, could be huge, avoid this
         cornerplot(retrieval_object,only_params=only_params)
+    opacity_plot(retrieval_object)
     
 def summary_plot(retrieval_object,fs=14):
 
@@ -265,15 +277,18 @@ def summary_plot(retrieval_object,fs=14):
     abunds=[]
     species=retrieval_object.species_names
     suffix='_1' if retrieval_object.chem=='var' else ''
-    for spec in species:
-        abunds.append(retrieval_object.params_dict[f'{spec}{suffix}'])
-    abunds, species = zip(*sorted(zip(abunds, species)))
-    only_params=species[-7:][::-1] # get largest 7
-    if retrieval_object.chem=='var':
-        new_only_params=[]
-        for spec in only_params:
-            new_only_params.append(f'{spec}_1')
-        only_params=new_only_params
+    if retrieval_object.chem=='equ':
+        only_params=['log_g','T0','C/O','Fe/H','log_DMS','log_C2H6','log_CH3Cl']
+    elif retrieval_object.chem in ['var','const']:
+        for spec in species:
+            abunds.append(retrieval_object.params_dict[f'{spec}{suffix}'])
+        abunds, species = zip(*sorted(zip(abunds, species)))
+        only_params=species[-7:][::-1] # get largest 7
+        if retrieval_object.chem=='var':
+            new_only_params=[]
+            for spec in only_params:
+                new_only_params.append(f'{spec}_1')
+            only_params=new_only_params
     #only_params=['log_H2O','log_CO','log_CO2','log_CH4','log_NH3','log_H2S','log_HCN']
     fig, ax = cornerplot(retrieval_object,getfig=True,only_params=only_params,figsize=(17,17),fs=fs)
     l, b, w, h = [0.4,0.84,0.57,0.15] # left, bottom, width, height
@@ -294,10 +309,20 @@ def opacity_plot(retrieval_object,only_params=None):
         abunds=[]
         species=retrieval_object.species_names
         suffix='_1' if retrieval_object.chem=='var' else ''
-        for spec in species:
-            abunds.append(retrieval_object.params_dict[f'{spec}{suffix}'])
+        if retrieval_object.chem in ['const','var']:
+            for spec in species:
+                abunds.append(retrieval_object.params_dict[f'{spec}{suffix}'])
+        elif retrieval_object.chem=='equ':
+            summed_contr=retrieval_object.summed_contr
+            # get pressure where emission contribution is maximal
+            idx_max = np.where(summed_contr==np.max(summed_contr))
+            pres_max=retrieval_object.pressure[idx_max]
+            print(idx_max,pres_max)
+            for spec in species:
+                abunds.append(retrieval_object.VMRs[spec][idx_max])
         abunds, species = zip(*sorted(zip(abunds, species)))
         only_params=species[-6:][::-1] # get largest 6
+
     species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
     pRT_names=[]
     labels=[]
@@ -419,3 +444,46 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
     fig.savefig(f'{output_dir}/{prefix}VMR_plot.pdf')
     plt.close()
 
+def CO_metal_cornerplot(retrieval_object,fs=10,**kwargs):
+
+    if retrieval_object.chem=='equ':
+        labels=['C/O','[Fe/H]']
+    elif retrieval_object.chem in ['const','var']:
+        labels=['C/O','[C/H]']
+    
+    fig = plt.figure(figsize=(4,4)) # fix size to avoid memory issues
+    fig = corner.corner(retrieval_object.CO_CH_dist,
+                        labels=labels, 
+                        title_kwargs={'fontsize':fs},
+                        label_kwargs={'fontsize':fs*0.8},
+                        color=retrieval_object.color1,
+                        linewidths=0.5,
+                        fill_contours=True,
+                        quantiles=[0.16,0.5,0.84],
+                        title_quantiles=[0.16,0.5,0.84],
+                        show_titles=True,
+                        hist_kwargs={'density': False,
+                                'fill': True,
+                                'alpha': 0.5,
+                                'edgecolor': 'k',
+                                'linewidth': 1.0},
+                        fig=fig,
+                        quiet=True)
+    titles = [axi.title.get_text() for axi in fig.axes]
+    
+    for i, title in enumerate(titles):
+        if len(title) > 1: # change 30 to 1 if you want all titles to be split
+            title_split = title.split('=')
+            titles[i] = title_split[0] + '\n ' + title_split[1]
+        fig.axes[i].title.set_text(titles[i])
+    filename=f'{retrieval_object.output_dir}/CO_metal.pdf'
+
+    for i, axi in enumerate(fig.axes):
+        fig.axes[i].xaxis.label.set_fontsize(fs)
+        fig.axes[i].yaxis.label.set_fontsize(fs)
+        fig.axes[i].tick_params(axis='both', which='major', labelsize=fs*0.8)
+        fig.axes[i].tick_params(axis='both', which='minor', labelsize=fs*0.8)
+
+    plt.subplots_adjust(wspace=0,hspace=0)
+    fig.savefig(filename,bbox_inches="tight",dpi=200)
+    plt.close()
