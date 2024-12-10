@@ -12,6 +12,9 @@ import getpass
 if getpass.getuser() == "grasser": # when runnig from LEM
     import matplotlib
     matplotlib.use('Agg') # disable interactive plotting
+    path_tables = '/net/lem/data2/regt/fastchem_tables'
+if getpass.getuser() == "natalie": # laptop
+    path_tables = '/home/natalie/fastchem_tables'
 
 class pRT_spectrum:
 
@@ -25,6 +28,7 @@ class pRT_spectrum:
         self.data_wave=retrieval_object.data_wave
         self.target=retrieval_object.target
         self.species_pRT=retrieval_object.species_pRT
+        self.species_hill = retrieval_object.species_hill
         self.spectral_resolution=spectral_resolution
         self.atmosphere_object=retrieval_object.atmosphere_object
 
@@ -45,6 +49,9 @@ class pRT_spectrum:
             self.mass_fractions, self.CO, self.FeH = self.var_chemistry(self.species_pRT,self.params)
             self.MMW = self.mass_fractions['MMW']
             #self.VMRs = self.get_VMRs(self.mass_fractions)
+        elif retrieval_object.chem=='equ':
+            self.mass_fractions, self.CO, self.FeH = self.equ_chemistry(self.species_pRT,self.params)
+            self.MMW = self.mass_fractions['MMW']
 
     def read_species_info(self,species,info_key):
         species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
@@ -69,6 +76,105 @@ class pRT_spectrum:
                 name=species_info.loc[species_info["pRT_name"]==pRT_name]['name'].values[0]
                 VMR_dict[name]=mass_fractions[pRT_name]*MMW/mass
         return VMR_dict
+    
+    # https://github.com/samderegt/retrieval_base/blob/Restructuring/retrieval_base/model_components/chemistry.py
+    def equ_chemistry(self,line_species,params):
+        species_info = pd.read_csv(os.path.join('species_info.csv'))
+
+        def load_interp_tables():
+            import h5py
+            def load_hdf5(file, key):
+                with h5py.File(f'{path_tables}/{file}', 'r') as f:
+                    return f[key][...]
+                
+            # Load the interpolation grid (ignore N/O)
+            self.P_grid = load_hdf5('grid.hdf5', 'P')
+            self.T_grid = load_hdf5('grid.hdf5', 'T')
+            self.CO_grid  = load_hdf5('grid.hdf5', 'C/O')
+            self.FeH_grid = load_hdf5('grid.hdf5', 'Fe/H')
+            points = (self.P_grid, self.T_grid, self.CO_grid, self.FeH_grid)
+
+            from scipy.interpolate import RegularGridInterpolator
+            self.interp_tables = {}
+            for species_i, hill_i in zip([*line_species, 'MMW'], [*self.species_hill, 'MMW']):
+                key = 'MMW' if species_i=='MMW' else 'log_VMR'
+                if species_i in ['C2H6','DMS','CH3Cl']:
+                    continue
+                arr = load_hdf5(f'{hill_i}.hdf5', key=key)  # Load equchem abundance tables
+                
+                # Generate interpolation functions
+                self.interp_tables[species_i] = RegularGridInterpolator(
+                    values=arr[:,:,:,0,:], points=points, method='linear', # arr[P,T,C/O,N/O (const, solar value),FeH]
+                    #bounds_error=False, fill_value=None
+                        )        
+                
+        def get_VMRs(ParamTable):
+            self.VMRs = {}
+            self.VMRs = {'He':0.15*np.ones(self.n_atm_layers)}
+
+            def apply_bounds(val, grid):
+                val=np.array(val)
+                val[val > grid.max()] = grid.max()
+                val[val < grid.min()] = grid.min()
+                return val
+
+            # Update the parameters
+            self.CO  = ParamTable.get('C/O')
+            self.FeH = ParamTable.get('Fe/H')
+
+            # Apply the bounds of the grid
+            P = apply_bounds(self.pressure.copy(), grid=self.P_grid)
+            T = apply_bounds(self.temperature.copy(), grid=self.T_grid)
+            CO  = apply_bounds(np.array([self.CO]).copy(), grid=self.CO_grid)[0]
+            FeH = apply_bounds(np.array([self.FeH]).copy(), grid=self.FeH_grid)[0]
+            
+            # Interpolate abundances
+            for pRT_name_i, interp_func_i in self.interp_tables.items():
+
+                # Interpolate the equilibrium abundances
+                arr_i = interp_func_i(xi=(P, T, CO, FeH))
+
+                if pRT_name_i != 'MMW':
+                    species_i=species_info.loc[species_info["pRT_name"]==pRT_name_i]['name'].values[0]
+                    self.VMRs[species_i] = 10**arr_i # log10(VMR)
+                else:
+                    self.MMW = arr_i.copy() # Mean-molecular weight
+
+            # add these separately, not in table
+            for species_i in ['C2H6','DMS','CH3Cl']:
+                self.VMRs[species_i] = np.ones(self.n_atm_layers)*10**params[f"log_{species_i}"]
+
+        def VMR_to_MF():
+            MMW = 0.
+            for species_i, VMR_i in self.VMRs.items():
+                mass_i = self.read_species_info(species_i, 'mass')
+                MMW += mass_i * VMR_i
+
+            # Convert to mass-fractions using mass-ratio
+            self.mass_fractions = {'MMW': MMW * np.ones(self.n_atm_layers)}
+            for species_i, VMR_i in self.VMRs.items():            
+                line_species_i = self.read_species_info(species_i, 'pRT_name')
+                mass_i = self.read_species_info(species_i, 'mass')
+                self.mass_fractions[line_species_i] = VMR_i * mass_i/MMW
+
+        def get_H2(): # get H2 abundance as the remainder of the total VMR
+
+            VMR_wo_H2 = np.sum([VMR_i for VMR_i in self.VMRs.values()], axis=0)
+            self.VMRs['H2'] = 1 - VMR_wo_H2
+
+            if (self.VMRs['H2'] < 0).any():
+                # Other species are too abundant
+                self.VMR_wo_H2=1.1
+                self.VMRs = -np.inf
+            else:
+                self.VMR_wo_H2=0.8 # just for avoiding an error at an if statement later on
+
+        load_interp_tables()
+        get_VMRs(params)
+        get_H2()
+        VMR_to_MF()
+
+        return self.mass_fractions,self.CO, self.FeH
         
     def var_chemistry(self,line_species,params):
         species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
@@ -82,7 +188,6 @@ class pRT_spectrum:
         for knot in range(3): # points where to retrieve abundances
 
             VMR_wo_H2 = 0 + VMR_He  # Total VMR without H2, starting with He
-            #mass_fractions = {} # Create a dictionary for all used species
             VMRs={}
             C, O, H = 0, 0, 0
 
@@ -97,7 +202,6 @@ class pRT_spectrum:
                     VMR_i = 10**(params[f'log_{species_i}_{knot}'])
 
                     # Convert VMR to mass fraction using molecular mass number
-                    #mass_fractions[line_species_i] = mass_i * VMR_i
                     VMRs[line_species_i] = VMR_i
                     VMR_wo_H2 += VMR_i
 
@@ -107,42 +211,21 @@ class pRT_spectrum:
                     H += COH_i[2] * VMR_i
 
             # Add the H2 and He abundances
-            #mass_fractions['He'] = self.read_species_info('He', 'mass')*VMR_He
             VMRs['He'] = VMR_He
             H += self.read_species_info('H2','H')*(1-VMR_wo_H2) # Add to the H-bearing species
             self.VMR_wo_H2=VMR_wo_H2
-
-            #MMW = 0 # Compute the mean molecular weight from all species
-            #for mass_i in mass_fractions.values():
-                #MMW += mass_i
-            
-            #for line_species_i in mass_fractions.keys():
-                #mass_fractions[line_species_i] /= MMW # Turn the molecular masses into mass fractions
-            #mass_fractions['MMW'] = MMW # pRT requires MMW in mass fractions dictionary
 
             CO = C/O
             log_CH_solar = 8.46 - 12 # Asplund et al. (2021)
             FeH = np.log10(C/H)-log_CH_solar
             CO_list.append(CO)
             FeH_list.append(FeH)
-            #mass_fractions_list.append(mass_fractions)
             VMRs_list.append(VMRs)
-
-        #mass_fractions_interp = {}
-        #for line_species_i in mass_fractions.keys():
-            #mass_fracs = [mass_fractions_list[0][line_species_i],mass_fractions_list[1][line_species_i],mass_fractions_list[2][line_species_i]]
-            #log_P_knots= np.linspace(np.log10(np.min(self.pressure)),np.log10(np.max(self.pressure)),num=3)
-            # use linear interpolation to avoid going into negative values cubic spline did that)
-            #log_mass_fracs=np.interp(np.log10(self.pressure), log_P_knots, np.log10(mass_fracs)) # interpolate for all layers
-            #mass_fractions_interp[line_species_i] = 10**log_mass_fracs #np.interp(np.log10(self.pressure), log_P_knots, mass_fracs) # interpolate for all layers
 
         VMRs_interp = {}
         mass_fractions_interp = {}
-        #for line_species_i in VMRs.keys():
         line_species.append('He')
         for species_i in species_info.index:
-            #if species_i=='H2':
-                #continue
             line_species_i = self.read_species_info(species_i,'pRT_name')
             mass_i = self.read_species_info(species_i, 'mass')
             if line_species_i in line_species and line_species_i!='H2':
@@ -188,17 +271,7 @@ class pRT_spectrum:
             if line_species_i=='MMW':
                 continue
             mass_fractions_interp[line_species_i] /= mass_fractions_interp['MMW'] # Turn the molecular masses into mass fractions
-            
-        #mf_layers = np.empty(self.n_atm_layers) # mass fraction of layers
-        #for l in range(self.n_atm_layers):
-            #mf=0
-            #for key in mass_fractions_interp.keys():
-                #if key!='MMW':
-                    #mf+=mass_fractions_interp[key][l]
-            #mf_layers[l]=mf
-        
-        #if any(l>1 for l in mf_layers): # exit if invalid params, or there will be error message
-            
+                       
         CO = np.nanmean(CO_list)
         FeH = np.nanmean(FeH_list)
         self.VMRs=VMRs_interp

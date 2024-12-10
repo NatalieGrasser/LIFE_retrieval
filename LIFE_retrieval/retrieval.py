@@ -30,7 +30,7 @@ class Retrieval:
         self.mask_isfinite=target.get_mask_isfinite() # mask nans
         self.parameters=parameters
         self.chem=chem
-        self.species_pRT=self.get_species(param_dict=self.parameters.params)
+        self.species_pRT, self.species_hill =self.get_species(param_dict=self.parameters.params)
 
         self.n_pixels=len(self.data_wave)
         self.n_params = len(parameters.free_params)
@@ -42,7 +42,7 @@ class Retrieval:
         self.cloud_mode=None # change later
         self.PT_type=PT_type
         self.n_atm_layers=50
-        self.pressure = np.logspace(-6,2,self.n_atm_layers)
+        self.pressure = np.logspace(-7,0,self.n_atm_layers) # equchem table P only until -6
 
         mask = self.mask_isfinite # only finite pixels
         self.Cov = Covariance(err=self.data_err[mask]) # use simple diagonal covariance matrix
@@ -63,18 +63,26 @@ class Retrieval:
     def get_species(self,param_dict): # get pRT species name from parameters dict
         species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
         self.species_names=[]
+        if self.chem=='equ':
+            # species in chemical equilibrium table
+            self.species_names = ['log_H2O','log_CO','log_CO2','log_CH4','log_NH3','log_HCN',
+                                  'log_H2S','log_C2H2','log_C2H4','log_SO2','log_OCS','log_CS2']
         for par in param_dict:
             if 'log_' in par: # get all species in params dict, they are in log, ignore other log values
                 if par in ['log_g','log_P_base_gray','log_opa_base_gray']: # skip
                     continue
-                if self.chem=='const':
+                if self.chem in 'const':
                     self.species_names.append(par)
                 elif self.chem=='var' and '_1' in par:
                     self.species_names.append(par[:-2])
+                elif self.chem=='equ':
+                    self.species_names.append(par)
         species=[]
+        hill=[] # hill notation
         for chemspec in self.species_names:
             species.append(species_info.loc[chemspec[4:],'pRT_name'])
-        return species
+            hill.append(species_info.loc[chemspec[4:],'Hill_notation'])
+        return species, hill
 
     def get_atmosphere_object(self):
 

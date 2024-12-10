@@ -120,7 +120,7 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
                                 linewidth=2,linestyle='-',label=olabel))
         return xmin,xmax
 
-    xmin,xmax=plot_temperature(retrieval_object,ax,olabel='Retrieval')
+    xmin,xmax=plot_temperature(retrieval_object,ax,olabel='$P-T$')
     #model_object=pRT_spectrum(retrieval_object,contribution=True)
     #model_object.make_spectrum()
     #summed_contr=model_object.contr_em
@@ -357,7 +357,7 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
     fig,ax=plt.subplots(1,1,figsize=(5,3.5),dpi=200)
     species_info = pd.read_csv(os.path.join('species_info.csv'))
     legend_labels=0
-    xmin,xmax=1e-10,1e-2
+    xmin,xmax=1e-10,10**(-0.9)
     chemleg=[] # legend for chemistry
     pressure=retrieval_object.model_object.pressure
 

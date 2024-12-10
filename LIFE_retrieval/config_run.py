@@ -54,38 +54,46 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad',chem='const'):
         free_params.update(pt_params)
 
     if PT_type=='PTgrad':
-        pt_params={'dlnT_dlnP_0': ([-0.4,0.4], r'$\nabla T_0$'), # gradient at T0 
-                'dlnT_dlnP_1': ([-0.4,0.4], r'$\nabla T_1$'), 
-                'dlnT_dlnP_2': ([-0.4,0.4], r'$\nabla T_2$'), 
-                'dlnT_dlnP_3': ([-0.4,0.4], r'$\nabla T_3$'), 
-                'dlnT_dlnP_4': ([-0.4,0.4], r'$\nabla T_4$'), 
+        pt_params={'dlnT_dlnP_0': ([-0.2,0.4], r'$\nabla T_0$'), # gradient at T0 
+                'dlnT_dlnP_1': ([-0.2,0.4], r'$\nabla T_1$'), 
+                'dlnT_dlnP_2': ([-0.2,0.4], r'$\nabla T_2$'), 
+                'dlnT_dlnP_3': ([-0.2,0.4], r'$\nabla T_3$'), 
+                'dlnT_dlnP_4': ([-0.2,0.4], r'$\nabla T_4$'), 
                 'T0': ([100,1000], r'$T_0$')} # at bottom of atmosphere
         free_params.update(pt_params)
         
-    # free chemistry, define VMRs
-    chemistry={'log_H2O':([-12,-1],r'log H$_2$O'),
-                'log_CO':([-12,-1],r'log CO'),
-                'log_CO2':([-12,-1],r'log CO$_2$'),
-                'log_CH4':([-12,-1],r'log CH$_4$'),
-                'log_NH3':([-12,-3],r'log NH$_3$'),
-                'log_HCN':([-12,-3],r'log HCN'),
-                'log_H2S':([-12,-3],r'log H$_2$S'),
-                'log_C2H2':([-12,-3],r'log C$_2$H$_2$'),
-                'log_C2H4':([-12,-3],r'log C$_2$H$_4$'),
+    if chem=='equ': # equilibrium chemistry
+        chemistry={'C/O':([0,1], r'C/O'), 
+                'Fe/H': ([-1.5,1.5], r'[Fe/H]'),
+                # retrieve these individually, not included in equchem table
                 'log_C2H6':([-12,-3],r'log C$_2$H$_6$'),
                 'log_CH3Cl':([-12,-3],r'log CH$_3$Cl'),
-                'log_SO2':([-12,-3],r'log SO$_2$'),
-                'log_OCS':([-12,-3],r'log OCS'),
-                'log_CS2':([-12,-3],r'log CS$_2$'),
                 'log_DMS':([-12,-3],r'log DMS')}
-       
-    if chem=='var':
-        varchem={}
-        for key in chemistry.keys():
-            varchem[f'{key}_0']=chemistry[key]
-            varchem[f'{key}_1']=chemistry[key]
-            varchem[f'{key}_2']=chemistry[key]
-        chemistry=varchem
+
+    elif chem in ['const','var']: # free chemistry, define VMRs
+        chemistry={'log_H2O':([-12,-1],r'log H$_2$O'),
+                    'log_CO':([-12,-1],r'log CO'),
+                    'log_CO2':([-12,-1],r'log CO$_2$'),
+                    'log_CH4':([-12,-1],r'log CH$_4$'),
+                    'log_NH3':([-12,-3],r'log NH$_3$'),
+                    'log_HCN':([-12,-3],r'log HCN'),
+                    'log_H2S':([-12,-3],r'log H$_2$S'),
+                    'log_C2H2':([-12,-3],r'log C$_2$H$_2$'),
+                    'log_C2H4':([-12,-3],r'log C$_2$H$_4$'),
+                    'log_C2H6':([-12,-3],r'log C$_2$H$_6$'),
+                    'log_CH3Cl':([-12,-3],r'log CH$_3$Cl'),
+                    'log_SO2':([-12,-3],r'log SO$_2$'),
+                    'log_OCS':([-12,-3],r'log OCS'),
+                    'log_CS2':([-12,-3],r'log CS$_2$'),
+                    'log_DMS':([-12,-3],r'log DMS')}
+        
+        if chem=='var':
+            varchem={}
+            for key in chemistry.keys():
+                varchem[f'{key}_0']=chemistry[key]
+                varchem[f'{key}_1']=chemistry[key]
+                varchem[f'{key}_2']=chemistry[key]
+            chemistry=varchem
 
     #cloud_props={'log_opa_base_gray': ([-10,3], r'log $\kappa_{\mathrm{cl},0}$'),  
                 #'log_P_base_gray': ([-6,3], r'log $P_{\mathrm{cl},0}$'), # pressure of gray cloud deck
@@ -101,5 +109,5 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad',chem='const'):
 
     return retrieval
 
-retrieval=init_retrieval(target_object,Nlive,evtol,PT_type='PTgrad',chem='var')
+retrieval=init_retrieval(target_object,Nlive,evtol,PT_type='PTgrad',chem='equ')
 retrieval.run_retrieval(bayes=bayes)
