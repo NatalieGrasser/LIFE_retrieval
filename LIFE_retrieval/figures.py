@@ -157,7 +157,7 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
     if only_abundances==True: # plot only abundances
         plot_label='_abundances'
         indices=[]
-        suffix='' if retrieval_object.chem=='const' else '_1'
+        suffix='_1' if retrieval_object.chem=='var' else ''
         for key in retrieval_object.species_names:
             indices.append(list(retrieval_object.parameters.free_params).index(f'{key}{suffix}'))
         plot_posterior=np.array([retrieval_object.posterior[:,i] for i in indices]).T
@@ -264,7 +264,7 @@ def summary_plot(retrieval_object,fs=14):
     # plot 7 most abundant species
     abunds=[]
     species=retrieval_object.species_names
-    suffix='' if retrieval_object.chem=='const' else '_1'
+    suffix='_1' if retrieval_object.chem=='var' else ''
     for spec in species:
         abunds.append(retrieval_object.params_dict[f'{spec}{suffix}'])
     abunds, species = zip(*sorted(zip(abunds, species)))
@@ -293,7 +293,7 @@ def opacity_plot(retrieval_object,only_params=None):
         only_params=[]
         abunds=[]
         species=retrieval_object.species_names
-        suffix='' if retrieval_object.chem=='const' else '_1'
+        suffix='_1' if retrieval_object.chem=='var' else ''
         for spec in species:
             abunds.append(retrieval_object.params_dict[f'{spec}{suffix}'])
         abunds, species = zip(*sorted(zip(abunds, species)))
@@ -346,7 +346,7 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
         # plot 8 most abundant species
         abunds=[]
         species=retrieval_object.species_names
-        suffix='' if retrieval_object.chem=='const' else '_1'
+        suffix='_1' if retrieval_object.chem=='var' else ''
         for spec in species:
             abunds.append(retrieval_object.params_dict[f'{spec}{suffix}']) # for varying, take middle VMR
         abunds, species = zip(*sorted(zip(abunds, species)))
