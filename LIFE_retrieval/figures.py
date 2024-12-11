@@ -372,8 +372,17 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
         abunds=[]
         species=retrieval_object.species_names
         suffix='_1' if retrieval_object.chem=='var' else ''
-        for spec in species:
-            abunds.append(retrieval_object.params_dict[f'{spec}{suffix}']) # for varying, take middle VMR
+        if retrieval_object.chem in ['const','var']:
+            for spec in species:
+                abunds.append(retrieval_object.params_dict[f'{spec}{suffix}']) # for varying, take middle VMR
+        elif retrieval_object.chem=='equ':
+            summed_contr=retrieval_object.summed_contr
+            # get pressure where emission contribution is maximal
+            idx_max = np.where(summed_contr==np.max(summed_contr))
+            pres_max=retrieval_object.pressure[idx_max]
+            print(idx_max,pres_max)
+            for spec in species:
+                abunds.append(retrieval_object.VMRs[spec][idx_max])
         abunds, species = zip(*sorted(zip(abunds, species)))
         molecules=species[-8:][::-1] # get largest 8
 
@@ -416,6 +425,12 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
                 ax.fill_betweenx(pressure,sm2,sp2,color=color,alpha=0.1) # 95% confidence interval
 
             elif retr_obj.chem=='var':
+                label=label if legend_labels==0 else '_nolegend_'
+                sm3,sm2,sm1,median,sp1,sp2,sp3=np.percentile(retr_obj.VMR_dict[f'{prt_species}'], [0.2,2.3,15.9,50.0,84.1,97.7,99.8], axis=0)
+                ax.plot(median,pressure,label=label,alpha=1,linestyle=linestyle,c=color)
+                ax.fill_betweenx(pressure,sm2,sp2,color=color,alpha=0.1) # 95% confidence interval
+
+            elif retr_obj.chem=='equ':
                 label=label if legend_labels==0 else '_nolegend_'
                 sm3,sm2,sm1,median,sp1,sp2,sp3=np.percentile(retr_obj.VMR_dict[f'{prt_species}'], [0.2,2.3,15.9,50.0,84.1,97.7,99.8], axis=0)
                 ax.plot(median,pressure,label=label,alpha=1,linestyle=linestyle,c=color)

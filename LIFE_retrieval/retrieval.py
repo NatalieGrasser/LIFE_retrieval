@@ -240,7 +240,7 @@ class Retrieval:
             self.CO_CH_dist=np.load(ratios)
             self.temp_dist=np.load(temp_dist)
 
-        elif ratios.exists() and temp_dist.exists() and VMR_dict.exists() and self.chem=='var':
+        elif ratios.exists() and temp_dist.exists() and VMR_dict.exists() and self.chem in ['var','equ']:
             self.CO_CH_dist=np.load(ratios)
             self.temp_dist=np.load(temp_dist)
             with open(VMR_dict,'rb') as file:
@@ -259,7 +259,7 @@ class Retrieval:
                 CO_distribution[j]=model_object.CO
                 CH_distribution[j]=model_object.FeH
                 temperature_distribution.append(model_object.temperature)
-                if self.chem=='var':
+                if self.chem in ['var','equ']:
                     VMRs.append(model_object.VMRs)
             self.CO_CH_dist=np.vstack([CO_distribution,CH_distribution]).T
             self.temp_dist=np.array(temperature_distribution) # shape (n_samples, n_atm_layers)
@@ -272,7 +272,7 @@ class Retrieval:
             self.params_dict['C/H']=median
             self.params_dict['C/H_err']=(minus_err,plus_err)
 
-            if self.chem=='var':
+            if self.chem in ['var','equ']:
                 self.VMR_dict={}
                 for molec in VMRs[0].keys():
                     vmr_list=[]
@@ -283,7 +283,7 @@ class Retrieval:
             if self.callback_label=='final_' and getpass.getuser() == "grasser": # when running from LEM
                 np.save(f'{self.output_dir}/CO_CH_dist.npy',self.CO_CH_dist)
                 np.save(f'{self.output_dir}/temperature_dist.npy',self.temp_dist)
-                if self.chem=='var':
+                if self.chem in ['var','equ']:
                     with open(f'{self.output_dir}/VMR_dict.pickle','wb') as file:
                         pickle.dump(self.VMR_dict,file)
 
