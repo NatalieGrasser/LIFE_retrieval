@@ -110,10 +110,11 @@ class Retrieval:
 
     def PMN_lnL(self,cube=None,ndim=None,nparams=None):
         self.model_object=pRT_spectrum(self)
-        self.model_flux=self.model_object.make_spectrum()
+        self.model_flux0=self.model_object.make_spectrum()
         self.Cov(self.parameters.params)
-        ln_L = self.LogLike(self.model_flux, self.Cov) # retrieve log-likelihood
-
+        ln_L = self.LogLike(self.model_flux0, self.Cov) # retrieve log-likelihood
+        phi = self.LogLike.phi
+        self.model_flux = phi*self.model_flux0
         if False:
             plt.plot(self.data_wave,self.data_flux)
             plt.plot(self.data_wave,self.model_flux,alpha=0.7)
@@ -176,7 +177,6 @@ class Retrieval:
             # create final spectrum
             self.model_object=pRT_spectrum(self,contribution=True)
             self.model_flux0=self.model_object.make_spectrum()
-            self.model_flux=np.zeros_like(self.model_flux0)
             self.summed_contr=self.model_object.contr_em
             phi=self.params_dict['phi']
             self.model_flux=phi*self.model_flux0 # scale model accordingly
