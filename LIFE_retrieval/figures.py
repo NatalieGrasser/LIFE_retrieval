@@ -191,6 +191,7 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
                         idx=list(retrieval_object.parameters.free_params).index(f'{key}_{i}')
                         abund_indices.append(idx)
         elif retrieval_object.chem=='equ':
+            chem_params=['C/O','Fe/H','log_DMS','log_C2H6','log_CH3Cl']
             for key in chem_params:
                 idx=list(retrieval_object.parameters.free_params).index(key)
                 abund_indices.append(idx)
