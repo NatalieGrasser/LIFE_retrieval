@@ -158,9 +158,9 @@ class Retrieval:
             minus_err=quantiles[:,0]-medians # -error
         else: # input only one posterior
             quantiles = np.array([np.percentile(posterior, [16.0,50.0,84.0])])
-            medians=quantiles[:,1] # median
-            plus_err=quantiles[:,2]-medians # +error
-            minus_err=quantiles[:,0]-medians # -error
+            medians=quantiles[:,1][0] # median
+            plus_err=quantiles[:,2][0]-medians # +error
+            minus_err=quantiles[:,0][0]-medians # -error
         return medians,minus_err,plus_err
 
     def get_params_and_spectrum(self): 
@@ -240,7 +240,13 @@ class Retrieval:
             self.CO_CH_dist=np.load(ratios)
             self.temp_dist=np.load(temp_dist)
 
-        elif ratios.exists() and temp_dist.exists() and VMR_dict.exists() and self.chem in ['var','equ']:
+        elif ratios.exists() and temp_dist.exists() and VMR_dict.exists() and self.chem=='var':
+            self.CO_CH_dist=np.load(ratios)
+            self.temp_dist=np.load(temp_dist)
+            with open(VMR_dict,'rb') as file:
+                self.VMR_dict=pickle.load(file)
+
+        elif temp_dist.exists() and VMR_dict.exists() and self.chem=='equ':
             self.CO_CH_dist=np.load(ratios)
             self.temp_dist=np.load(temp_dist)
             with open(VMR_dict,'rb') as file:
@@ -264,13 +270,13 @@ class Retrieval:
             self.CO_CH_dist=np.vstack([CO_distribution,CH_distribution]).T
             self.temp_dist=np.array(temperature_distribution) # shape (n_samples, n_atm_layers)
 
-            median,minus_err,plus_err=self.get_quantiles(CO_distribution,flat=True)
-            self.params_dict['C/O']=median
-            self.params_dict['C/O_err']=(minus_err,plus_err)
-
-            median,minus_err,plus_err=self.get_quantiles(CH_distribution,flat=True)
-            self.params_dict['C/H']=median
-            self.params_dict['C/H_err']=(minus_err,plus_err)
+            if self.chem in ['var','const']: # already retrieved in equ
+                median,minus_err,plus_err=self.get_quantiles(CO_distribution,flat=True)
+                self.params_dict['C/O']=median
+                self.params_dict['C/O_err']=(minus_err,plus_err)
+                median,minus_err,plus_err=self.get_quantiles(CH_distribution,flat=True)
+                self.params_dict['C/H']=median
+                self.params_dict['C/H_err']=(minus_err,plus_err)
 
             if self.chem in ['var','equ']:
                 self.VMR_dict={}
@@ -281,8 +287,9 @@ class Retrieval:
                     self.VMR_dict[molec]=vmr_list # reformat to make it easier to work with
 
             if self.callback_label=='final_' and getpass.getuser() == "grasser": # when running from LEM
-                np.save(f'{self.output_dir}/CO_CH_dist.npy',self.CO_CH_dist)
                 np.save(f'{self.output_dir}/temperature_dist.npy',self.temp_dist)
+                if self.chem in ['var','const']:
+                    np.save(f'{self.output_dir}/CO_CH_dist.npy',self.CO_CH_dist)
                 if self.chem in ['var','equ']:
                     with open(f'{self.output_dir}/VMR_dict.pickle','wb') as file:
                         pickle.dump(self.VMR_dict,file)
@@ -291,6 +298,8 @@ class Retrieval:
         self.callback_label=callback_label
         self.PMN_analyse() # get/save bestfit params and final posterior
         self.params_dict,self.model_flux=self.get_params_and_spectrum() # all params: constant + free + scaling phi + s2
+        for key in self.parameters.param_keys:
+            self.parameters.params[key]=self.params_dict[key] # set parameters to retrieved values
         if makefigs:
             if callback_label=='final_':
                 figs.make_all_plots(self,split_corner=True)

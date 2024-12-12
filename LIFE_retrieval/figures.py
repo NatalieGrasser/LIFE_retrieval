@@ -315,13 +315,13 @@ def opacity_plot(retrieval_object,only_params=None):
         elif retrieval_object.chem=='equ':
             summed_contr=retrieval_object.summed_contr
             # get pressure where emission contribution is maximal
-            idx_max = np.where(summed_contr==np.max(summed_contr))
-            pres_max=retrieval_object.pressure[idx_max]
-            print(idx_max,pres_max)
+            idx_max = np.where(summed_contr==np.max(summed_contr))[0][0]
+            #pres_max=retrieval_object.pressure[idx_max]
             for spec in species:
-                abunds.append(retrieval_object.VMRs[spec][idx_max])
+                abunds.append(np.median(retrieval_object.VMR_dict[spec[4:]],axis=0)[idx_max])
         abunds, species = zip(*sorted(zip(abunds, species)))
         only_params=species[-6:][::-1] # get largest 6
+        abunds = abunds[-6:][::-1]
 
     species_info = pd.read_csv(os.path.join('species_info.csv'), index_col=0)
     pRT_names=[]
@@ -345,7 +345,10 @@ def opacity_plot(retrieval_object,only_params=None):
     lines=[]
     maxmin=[]
     for i,m in enumerate(pRT_names):
-        abund=10**retrieval_object.params_dict[f'{only_params[i]}{suffix}']
+        if retrieval_object.chem in ['const','var']:
+            abund=10**retrieval_object.params_dict[f'{only_params[i]}{suffix}']
+        elif retrieval_object.chem=='equ':
+            abund=abunds[i]
         col=species_info.loc[f'{only_params[i][4:]}','color']
         spec,=plt.plot(wave_um,opas[m]*abund,lw=0.5,c=col)
         lines.append(Line2D([0],[0],color=spec.get_color(),
@@ -378,11 +381,10 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
         elif retrieval_object.chem=='equ':
             summed_contr=retrieval_object.summed_contr
             # get pressure where emission contribution is maximal
-            idx_max = np.where(summed_contr==np.max(summed_contr))
-            pres_max=retrieval_object.pressure[idx_max]
-            print(idx_max,pres_max)
+            idx_max = np.where(summed_contr==np.max(summed_contr))[0][0]
+            #pres_max=retrieval_object.pressure[idx_max]
             for spec in species:
-                abunds.append(retrieval_object.VMRs[spec][idx_max])
+                abunds.append(np.median(retrieval_object.VMR_dict[spec[4:]],axis=0)[idx_max])
         abunds, species = zip(*sorted(zip(abunds, species)))
         molecules=species[-8:][::-1] # get largest 8
 
@@ -399,7 +401,7 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
         
         if retr_obj.chem=='const':    
             chemleg.append(Line2D([0], [0], marker='o',color='k',markerfacecolor='k',linewidth=2,alpha=0.7))
-        elif retr_obj.chem=='var':
+        elif retr_obj.chem in ['var','equ']:
             linestyle='solid'
             chemleg.append(Line2D([0], [0], color='k',linestyle=linestyle,linewidth=2,alpha=0.3))
 
@@ -432,7 +434,7 @@ def VMR_plot(retrieval_object,molecules=None,fs=10):
 
             elif retr_obj.chem=='equ':
                 label=label if legend_labels==0 else '_nolegend_'
-                sm3,sm2,sm1,median,sp1,sp2,sp3=np.percentile(retr_obj.VMR_dict[f'{prt_species}'], [0.2,2.3,15.9,50.0,84.1,97.7,99.8], axis=0)
+                sm3,sm2,sm1,median,sp1,sp2,sp3=np.percentile(retr_obj.VMR_dict[f'{species}'], [0.2,2.3,15.9,50.0,84.1,97.7,99.8], axis=0)
                 ax.plot(median,pressure,label=label,alpha=1,linestyle=linestyle,c=color)
                 ax.fill_betweenx(pressure,sm2,sp2,color=color,alpha=0.1) # 95% confidence interval
     
