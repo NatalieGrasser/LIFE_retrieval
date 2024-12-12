@@ -152,7 +152,7 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
     plot_posterior=retrieval_object.posterior # posterior that we plot here, might get clipped
     medians,_,_=retrieval_object.get_quantiles(retrieval_object.posterior)
     labels=list(retrieval_object.parameters.param_mathtext.values())
-    indices=np.linspace(0,len(retrieval_object.parameters.params)-1,len(retrieval_object.parameters.params),dtype=int)
+    indices=np.linspace(0,len(retrieval_object.parameters.free_params)-1,len(retrieval_object.parameters.free_params),dtype=int)
     
     if only_abundances==True: # plot only abundances
         plot_label='_abundances'
