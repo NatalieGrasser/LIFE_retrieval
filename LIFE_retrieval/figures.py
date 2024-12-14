@@ -138,7 +138,7 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
         test_par = Parameters({}, test_parameters)
         test_ret=Retrieval(target=retrieval_object.target,parameters=test_par, 
                             output_name=retrieval_object.output_name,
-                            chemistry=retrieval_object.chem,PT_type=retrieval_object.PT_type)
+                            chem=retrieval_object.chem,PT_type=retrieval_object.PT_type)
         test_ret.model_object=pRT_spectrum(test_ret)
         ax.plot(test_ret.model_object.temperature,test_ret.pressure,linestyle='dashdot',c='blueviolet',lw=2) 
         comparison_pt=Line2D([0], [0], color='blueviolet', linewidth=2, linestyle='dashdot',label='Input')

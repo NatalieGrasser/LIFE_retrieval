@@ -361,7 +361,7 @@ class pRT_spectrum:
 
         wl = const.c.to(u.km/u.s).value/atmosphere.freq/1e-9 # mircons
         if np.nanmean(atmosphere.flux) in [0, np.nan, np.inf] or len(atmosphere.flux)==0:
-            print('Invalid flux',np.nanmean(atmosphere.flux)) # cause: probably messed up PT profile
+            print('Invalid flux:',np.nanmean(atmosphere.flux)) # cause: probably messed up PT profile
             #with open(f'{self.output_dir}/failed_pRT_obj.pickle','wb') as file: # save new results in separate dict
                 #pickle.dump(self,file)
             flux= np.ones_like(wl)
