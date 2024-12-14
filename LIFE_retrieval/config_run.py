@@ -23,13 +23,6 @@ elif getpass.getuser() == "natalie": # when testing from my laptop
     from retrieval import Retrieval
     from parameters import Parameters
 
-# pass configuration as command line argument
-# example: config_run.py test 200 5
-target_object = sys.argv[1]
-Nlive=int(sys.argv[2]) # number of live points (integer)
-evtol=float(sys.argv[3]) # evidence tolerance (float)
-bayes=True if len(sys.argv)>4 else False # True / False (do bayes evidence retrievals)
-
 def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad',chem='const'):
 
     output=f'N{Nlive}_e{evtol}' # output folder name
@@ -109,5 +102,14 @@ def init_retrieval(obj,Nlive,evtol,PT_type='PTgrad',chem='const'):
 
     return retrieval
 
-retrieval=init_retrieval(target_object,Nlive,evtol,PT_type='PTgrad',chem='equ')
-retrieval.run_retrieval(bayes=bayes)
+if __name__ == "__main__":
+
+    # pass configuration as command line argument
+    # example: config_run.py test 200 5
+    target_object = sys.argv[1]
+    Nlive=int(sys.argv[2]) # number of live points (integer)
+    evtol=float(sys.argv[3]) # evidence tolerance (float)
+    bayes=True if len(sys.argv)>4 else False # True / False (do bayes evidence retrievals)
+
+    retrieval=init_retrieval(target_object,Nlive,evtol,PT_type='PTknot',chem='const')
+    retrieval.run_retrieval(bayes=bayes)

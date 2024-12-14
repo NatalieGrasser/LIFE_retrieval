@@ -3,3 +3,5 @@ atmosphere_object*
 *.par
 */Sorg1/*
 */Sorg20/*
+!psg*
+!test_spectrum.txt

@@ -120,7 +120,7 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
                                 linewidth=2,linestyle='-',label=olabel))
         return xmin,xmax
 
-    xmin,xmax=plot_temperature(retrieval_object,ax,olabel='$P-T$')
+    xmin,xmax=plot_temperature(retrieval_object,ax,olabel='Retrieved $PT$')
     #model_object=pRT_spectrum(retrieval_object,contribution=True)
     #model_object.make_spectrum()
     #summed_contr=model_object.contr_em
@@ -130,6 +130,19 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
             lw=1.5,alpha=0.8,color=retrieval_object.color1)
     lines.append(Line2D([0], [0], color=retrieval_object.color1, alpha=0.8,
                         linewidth=1.5, linestyle='--',label='Emission'))
+    
+    if retrieval_object.target.name=='test':
+        from retrieval import Retrieval
+        from parameters import Parameters
+        from testspec import test_parameters
+        test_par = Parameters({}, test_parameters)
+        test_ret=Retrieval(target=retrieval_object.target,parameters=test_par, 
+                            output_name=retrieval_object.output_name,
+                            chemistry=retrieval_object.chem,PT_type=retrieval_object.PT_type)
+        test_ret.model_object=pRT_spectrum(test_ret)
+        ax.plot(test_ret.model_object.temperature,test_ret.pressure,linestyle='dashdot',c='blueviolet',lw=2) 
+        comparison_pt=Line2D([0], [0], color='blueviolet', linewidth=2, linestyle='dashdot',label='Input')
+        lines.append(comparison_pt)
         
     ax.set(xlabel='Temperature [K]', ylabel='Pressure [bar]',yscale='log',
         ylim=(np.nanmax(retrieval_object.model_object.pressure),
@@ -147,7 +160,7 @@ def plot_pt(retrieval_object,fs=12,**kwargs):
         plt.close()
 
 def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label='',
-            only_abundances=False,only_params=None,not_abundances=False,truevals=False):
+            only_abundances=False,only_params=None,not_abundances=False):
     
     plot_posterior=retrieval_object.posterior # posterior that we plot here, might get clipped
     medians,_,_=retrieval_object.get_quantiles(retrieval_object.posterior)
@@ -229,7 +242,7 @@ def cornerplot(retrieval_object,getfig=False,figsize=(20,20),fs=12,plot_label=''
 
     # add true values of test spectrum
     # plotting didn't work bc x-axis range so small, some didn't show up
-    if truevals==True:
+    if retrieval_object.target.name=='test':
         from testspec import test_parameters,test_mathtext
         compare=np.full(len(labels),None) # =None for non-input values of test spectrum
         for key_i in test_parameters.keys():

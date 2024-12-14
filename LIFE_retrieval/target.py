@@ -15,14 +15,14 @@ class Target:
 
     def load_spectrum(self):
         if self.name=='test':
-            filename='spec_emiss_0.txt'
+            filename=f'./{self.name}/test_spectrum.txt'
             file=np.genfromtxt(filename,skip_header=0,delimiter=' ')
             self.wl=file[:,0]
             self.fl=file[:,1]/np.nanmedian(file[:,1])
             self.flerr=np.ones_like(self.fl)*0.1#file[:,2]
-        if self.name in ['Sorg1','Sorg20']:
+        elif self.name in ['Sorg1','Sorg20']:
             # weird format???
-            filename=f'psg_rad_{self.name}X.txt'
+            filename=f'./{self.name}/psg_rad_{self.name}X.txt'
             file1=np.genfromtxt(filename,skip_header=13,skip_footer=1488,delimiter='  ')
             wl1=file1[:,0]
             fl1=file1[:,1]
