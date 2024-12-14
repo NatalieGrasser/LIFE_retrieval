@@ -110,6 +110,12 @@ if __name__ == "__main__":
     Nlive=int(sys.argv[2]) # number of live points (integer)
     evtol=float(sys.argv[3]) # evidence tolerance (float)
     bayes=True if len(sys.argv)>4 else False # True / False (do bayes evidence retrievals)
+    PT_type='PTgrad'
+    chem='const'
 
-    retrieval=init_retrieval(target_object,Nlive,evtol,PT_type='PTknot',chem='const')
+    if target_object=='test':
+        from testspec import test_PT, test_chem
+        PT_type=test_PT
+        chem=test_chem
+    retrieval=init_retrieval(target_object,Nlive,evtol,PT_type=PT_type,chem=chem)
     retrieval.run_retrieval(bayes=bayes)

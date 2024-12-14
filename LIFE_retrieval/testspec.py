@@ -33,6 +33,8 @@ test_mathtext={}
 for key_i, (value_i, mathtext_i) in test_dict.items():
    test_parameters[key_i] = value_i
    test_mathtext[key_i] = mathtext_i
+test_PT= 'PTgrad'
+test_chem='const'
 
 # only execute code if run directly from terminal, otherwise just import params dict
 if __name__ == "__main__":
@@ -44,7 +46,7 @@ if __name__ == "__main__":
     import pathlib
     import os 
 
-    retrieval = cf.init_retrieval(obj='test',Nlive=100,evtol=1,PT_type='PTgrad',chem='const')
+    retrieval = cf.init_retrieval(obj='test',Nlive=100,evtol=1,PT_type=test_PT,chem=test_chem)
     retrieval.parameters.params = test_parameters
     data_wave= retrieval.data_wave
     test_object=pRT_spectrum(retrieval)
