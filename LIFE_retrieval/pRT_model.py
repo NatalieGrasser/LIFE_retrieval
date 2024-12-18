@@ -405,7 +405,7 @@ class pRT_spectrum:
 
             # interpolate over dlnT/dlnP gradients
             interp_func = interp1d(self.log_P_knots,self.dlnT_dlnP_knots,kind='quadratic') # for the other 50 atm layers
-            dlnT_dlnP = interp_func(np.log10(self.pressure))[::-1] # reverse order, start at bottom of atm
+            dlnT_dlnP = interp_func(np.log10(self.pressure))#[::-1] # reverse order, start at bottom of atm
 
             if 'T_base' not in kwargs:
                 T_base = self.params['T0'] # T0 is free param, at bottom of atmosphere
